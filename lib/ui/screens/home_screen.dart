@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/control_panel.dart';
 import '../widgets/summary_view.dart';
 import '../widgets/comments_section.dart';
-import '../../core/models/meeting_session.dart';
 import '../../core/enums/recording_state.dart';
+import '../../services/meeting_service.dart';
 
 /// Main home screen for the Meeting Summarizer app
 /// Provides the primary interface for recording and viewing meeting summaries
@@ -18,14 +19,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  // Current meeting session state
-  MeetingSession? _currentSession;
-  RecordingState _recordingState = RecordingState.stopped;
-  double _audioLevel = 0.0;
-  String _currentLanguage = 'EN';
-  Duration _elapsedTime = Duration.zero;
-
-  // UI state
   bool _isDesktop = false;
   int _selectedTabIndex = 0; // 0 = Summary, 1 = Comments
 
@@ -33,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _initializeSession();
+    _initializeServices();
   }
 
   @override
@@ -42,58 +35,109 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
-  /// Initialize a new meeting session
-  void _initializeSession() {
-    setState(() {
-      _currentSession = MeetingSession(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: 'Meeting ${DateTime.now().toLocal()}',
-        startTime: DateTime.now(),
-      );
-    });
+  /// Initialize the meeting services
+  Future<void> _initializeServices() async {
+    try {
+      // Use a post-frame callback to ensure the widget is mounted
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        
+        final meetingService = Provider.of<MeetingService>(context, listen: false);
+        final success = await meetingService.initialize();
+
+        if (!success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(meetingService.lastError ?? 'Failed to initialize services'),
+              backgroundColor: Colors.red,
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: _initializeServices,
+              ),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error initializing services: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// Handle recording state changes
-  void _onRecordingStateChanged(RecordingState newState) {
-    setState(() {
-      _recordingState = newState;
-    });
-
-    // TODO: Implement actual recording logic
+  Future<void> _onRecordingStateChanged(RecordingState newState) async {
     switch (newState) {
       case RecordingState.recording:
-        _startRecording();
+        await _startRecording();
         break;
       case RecordingState.paused:
-        _pauseRecording();
+        await _pauseRecording();
         break;
       case RecordingState.stopped:
-        _stopRecording();
+        await _stopRecording();
         break;
     }
   }
 
   /// Start recording implementation
-  void _startRecording() {
-    // TODO: Implement audio capture start
-    print('Starting recording...');
+  Future<void> _startRecording() async {
+    final meetingService = Provider.of<MeetingService>(context, listen: false);
+    final success = await meetingService.startMeeting();
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(meetingService.lastError ?? 'Failed to start recording'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   /// Pause recording implementation
-  void _pauseRecording() {
-    // TODO: Implement audio capture pause
-    print('Pausing recording...');
+  Future<void> _pauseRecording() async {
+    final meetingService = Provider.of<MeetingService>(context, listen: false);
+    final success = await meetingService.pauseMeeting();
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text(meetingService.lastError ?? 'Failed to pause recording'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   /// Stop recording implementation
-  void _stopRecording() {
-    // TODO: Implement audio capture stop
-    print('Stopping recording...');
+  Future<void> _stopRecording() async {
+    final meetingService = Provider.of<MeetingService>(context, listen: false);
+    final success = await meetingService.stopMeeting();
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(meetingService.lastError ?? 'Failed to stop recording'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   /// Handle export action
   void _onExportPressed() {
-    if (_currentSession != null) {
+    final meetingService = Provider.of<MeetingService>(context, listen: false);
+    final currentSession = meetingService.currentSession;
+
+    if (currentSession != null) {
       // TODO: Implement export functionality
       showDialog(
         context: context,
@@ -113,40 +157,74 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Determine if we're on desktop or mobile
-        _isDesktop = constraints.maxWidth >= 768;
+    return Consumer<MeetingService>(
+      builder: (context, meetingService, child) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            // Determine if we're on desktop or mobile
+            _isDesktop = constraints.maxWidth >= 768;
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Meeting Summarizer'),
-            actions: [
-              // Language indicator
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Chip(
-                  label: Text(_currentLanguage),
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primaryContainer,
-                ),
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Meeting Summarizer'),
+                actions: [
+                  // Language indicator
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Chip(
+                      label: Text(meetingService.currentLanguage),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.primaryContainer,
+                    ),
+                  ),
+                  // Export button
+                  IconButton(
+                    onPressed: _onExportPressed,
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Export Summary',
+                  ),
+                ],
               ),
-              // Export button
-              IconButton(
-                onPressed: _onExportPressed,
-                icon: const Icon(Icons.download),
-                tooltip: 'Export Summary',
-              ),
-            ],
-          ),
-          body: _isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+              body: meetingService.isAudioInitialized &&
+                      meetingService.isAiInitialized
+                  ? (_isDesktop
+                      ? _buildDesktopLayout(meetingService)
+                      : _buildMobileLayout(meetingService))
+                  : _buildLoadingView(meetingService),
+            );
+          },
         );
       },
     );
   }
 
+  /// Build loading view while services initialize
+  Widget _buildLoadingView(MeetingService meetingService) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text(
+            meetingService.lastError ?? 'Initializing services...',
+            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+          if (meetingService.lastError != null) ...[
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _initializeServices,
+              child: const Text('Retry'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   /// Build desktop layout (split-screen: 30% controls, 70% summary)
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(MeetingService meetingService) {
     return Row(
       children: [
         // Left panel - Controls (30%)
@@ -163,10 +241,10 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             child: ControlPanel(
-              recordingState: _recordingState,
-              audioLevel: _audioLevel,
-              elapsedTime: _elapsedTime,
-              currentLanguage: _currentLanguage,
+              recordingState: meetingService.recordingState,
+              audioLevel: meetingService.currentAudioLevel,
+              elapsedTime: meetingService.currentDuration,
+              currentLanguage: meetingService.currentLanguage,
               onRecordingStateChanged: _onRecordingStateChanged,
             ),
           ),
@@ -179,14 +257,14 @@ class _HomeScreenState extends State<HomeScreen>
               // Summary view
               Expanded(
                 child: SummaryView(
-                  session: _currentSession,
-                  isLive: _recordingState == RecordingState.recording,
+                  session: meetingService.currentSession,
+                  isLive:
+                      meetingService.recordingState == RecordingState.recording,
                 ),
               ),
               // Comments section - Fixed height container that allows internal scrolling
               SizedBox(
-                height:
-                    180, // Fixed height instead of flex to allow proper scrolling
+                height: 180,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
@@ -198,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   child: CommentsSection(
-                    session: _currentSession,
+                    session: meetingService.currentSession,
                   ),
                 ),
               ),
@@ -210,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   /// Build mobile layout (single column with tab navigation)
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(MeetingService meetingService) {
     return Column(
       children: [
         // Control panel at top
@@ -226,10 +304,10 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
           child: ControlPanel(
-            recordingState: _recordingState,
-            audioLevel: _audioLevel,
-            elapsedTime: _elapsedTime,
-            currentLanguage: _currentLanguage,
+            recordingState: meetingService.recordingState,
+            audioLevel: meetingService.currentAudioLevel,
+            elapsedTime: meetingService.currentDuration,
+            currentLanguage: meetingService.currentLanguage,
             onRecordingStateChanged: _onRecordingStateChanged,
             isCompact: true, // Mobile-optimized layout
           ),
@@ -265,12 +343,13 @@ class _HomeScreenState extends State<HomeScreen>
             children: [
               // Summary tab
               SummaryView(
-                session: _currentSession,
-                isLive: _recordingState == RecordingState.recording,
+                session: meetingService.currentSession,
+                isLive:
+                    meetingService.recordingState == RecordingState.recording,
               ),
               // Comments tab
               CommentsSection(
-                session: _currentSession,
+                session: meetingService.currentSession,
               ),
             ],
           ),
