@@ -71,6 +71,32 @@ class AudioChunk {
     return samples;
   }
 
+  /// Convert to map for isolate communication
+  Map<String, dynamic> toMap() {
+    return {
+      'data': data,
+      'timestamp': timestamp.toIso8601String(),
+      'duration': duration.inMicroseconds,
+      'sampleRate': sampleRate,
+      'channels': channels,
+      'bitsPerSample': bitsPerSample,
+      'level': level,
+    };
+  }
+
+  /// Create from map for isolate communication
+  factory AudioChunk.fromMap(Map<String, dynamic> map) {
+    return AudioChunk(
+      data: map['data'] as Uint8List,
+      timestamp: DateTime.parse(map['timestamp'] as String),
+      duration: Duration(microseconds: map['duration'] as int),
+      sampleRate: map['sampleRate'] as int,
+      channels: map['channels'] as int,
+      bitsPerSample: map['bitsPerSample'] as int,
+      level: (map['level'] as num).toDouble(),
+    );
+  }
+
   @override
   String toString() =>
       'AudioChunk(${duration.inMilliseconds}ms, ${sampleCount} samples, '

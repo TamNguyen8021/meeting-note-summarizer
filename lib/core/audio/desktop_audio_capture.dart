@@ -10,12 +10,12 @@ import '../audio/audio_chunk.dart';
 /// Currently provides mock functionality until native implementation is ready
 class DesktopAudioCapture implements AudioCaptureInterface {
   final AudioCaptureConfig _config;
-  
-  final StreamController<AudioChunk> _audioStreamController = 
+
+  final StreamController<AudioChunk> _audioStreamController =
       StreamController<AudioChunk>.broadcast();
-  final StreamController<List<AudioSource>> _sourcesStreamController = 
+  final StreamController<List<AudioSource>> _sourcesStreamController =
       StreamController<List<AudioSource>>.broadcast();
-  final StreamController<double> _audioLevelStreamController = 
+  final StreamController<double> _audioLevelStreamController =
       StreamController<double>.broadcast();
 
   AudioSource? _currentSource;
@@ -32,7 +32,7 @@ class DesktopAudioCapture implements AudioCaptureInterface {
   Stream<AudioChunk> get audioStream => _audioStreamController.stream;
 
   @override
-  Stream<List<AudioSource>> get availableSourcesStream => 
+  Stream<List<AudioSource>> get availableSourcesStream =>
       _sourcesStreamController.stream;
 
   @override
@@ -49,12 +49,12 @@ class DesktopAudioCapture implements AudioCaptureInterface {
 
   @override
   Map<String, dynamic> get audioConfig => {
-    'sampleRate': _config.sampleRate,
-    'channels': _config.channels,
-    'bitsPerSample': _config.bitsPerSample,
-    'platform': 'desktop',
-    'note': 'Mock implementation - actual implementation pending',
-  };
+        'sampleRate': _config.sampleRate,
+        'channels': _config.channels,
+        'bitsPerSample': _config.bitsPerSample,
+        'platform': 'desktop',
+        'note': 'Mock implementation - actual implementation pending',
+      };
 
   @override
   Future<bool> initialize() async {
@@ -63,13 +63,13 @@ class DesktopAudioCapture implements AudioCaptureInterface {
     try {
       // Simulate initialization delay
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       _isInitialized = true;
-      
+
       // Emit initial sources
       final sources = await getAvailableSources();
       _sourcesStreamController.add(sources);
-      
+
       return true;
     } catch (e) {
       return false;
@@ -106,7 +106,7 @@ class DesktopAudioCapture implements AudioCaptureInterface {
   @override
   Future<bool> selectSource(AudioSource source) async {
     if (!_isInitialized) return false;
-    
+
     _currentSource = source;
     return true;
   }
@@ -158,11 +158,11 @@ class DesktopAudioCapture implements AudioCaptureInterface {
   Future<void> dispose() async {
     _stopMockAudioGeneration();
     _stopAudioLevelMonitoring();
-    
+
     await _audioStreamController.close();
     await _sourcesStreamController.close();
     await _audioLevelStreamController.close();
-    
+
     _isInitialized = false;
   }
 
@@ -202,7 +202,7 @@ class DesktopAudioCapture implements AudioCaptureInterface {
       final sineWave = (sin(2 * pi * frequency * time) * 0.3);
       final noise = (_random.nextDouble() - 0.5) * 0.1;
       final sample = ((sineWave + noise) * 32767).round().clamp(-32768, 32767);
-      
+
       // Convert to little-endian bytes
       final sampleBytes = sample < 0 ? sample + 65536 : sample;
       audioData[i * 2] = sampleBytes & 0xFF;
@@ -237,7 +237,7 @@ class DesktopAudioCapture implements AudioCaptureInterface {
       // Convert little-endian 16-bit sample to signed value
       int sample = data[i] | (data[i + 1] << 8);
       if (sample >= 32768) sample -= 65536;
-      
+
       sum += (sample / 32768.0).abs();
     }
 
