@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../core/audio/audio_chunk.dart';
 import '../core/ai/speech_recognition_interface.dart';
 import '../core/ai/summarization_interface.dart';
-import '../core/ai/model_manager.dart';
+import '../core/ai/enhanced_model_manager.dart';
 import '../core/ai/whisper_speech_recognition.dart';
 import '../core/ai/llama_summarization.dart';
 import 'mock_speech_recognition.dart';
