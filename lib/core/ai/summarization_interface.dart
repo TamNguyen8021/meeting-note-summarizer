@@ -120,6 +120,36 @@ class MeetingSummary {
       confidence: confidence ?? this.confidence,
     );
   }
+
+  /// Convert to map for isolate communication
+  Map<String, dynamic> toMap() {
+    return {
+      'startTime': startTime.toIso8601String(),
+      'endTime': endTime.toIso8601String(),
+      'topic': topic,
+      'keyPoints': keyPoints,
+      'actionItems': actionItems.map((a) => a.toJson()).toList(),
+      'participants': participants,
+      'language': language,
+      'confidence': confidence,
+    };
+  }
+
+  /// Create from map for isolate communication
+  factory MeetingSummary.fromMap(Map<String, dynamic> map) {
+    return MeetingSummary(
+      startTime: DateTime.parse(map['startTime'] as String),
+      endTime: DateTime.parse(map['endTime'] as String),
+      topic: map['topic'] as String,
+      keyPoints: List<String>.from(map['keyPoints'] as List),
+      actionItems: (map['actionItems'] as List)
+          .map((a) => ActionItem.fromJson(a as Map<String, dynamic>))
+          .toList(),
+      participants: List<String>.from(map['participants'] as List),
+      language: map['language'] as String,
+      confidence: (map['confidence'] as num).toDouble(),
+    );
+  }
 }
 
 /// Represents an action item extracted from the meeting

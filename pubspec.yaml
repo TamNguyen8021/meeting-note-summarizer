@@ -21,8 +21,14 @@ dependencies:
   # Utilities
   uuid: ^4.1.0
   intl: ^0.18.1
-  # AI/ML integration (placeholder for now)
+  # AI/ML integration
   ffi: ^2.1.0
+  # HTTP client for model downloads
+  http: ^1.1.0
+  # Archive extraction for model files
+  archive: ^3.4.10
+  # Isolates for background processing
+  compute: ^1.0.0
 
 dev_dependencies:
   flutter_test:

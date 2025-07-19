@@ -59,6 +59,27 @@ class SpeechSegment {
     this.speakerName,
   });
 
+  /// Create a copy with updated properties
+  SpeechSegment copyWith({
+    String? text,
+    DateTime? startTime,
+    DateTime? endTime,
+    double? confidence,
+    String? language,
+    String? speakerId,
+    String? speakerName,
+  }) {
+    return SpeechSegment(
+      text: text ?? this.text,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      confidence: confidence ?? this.confidence,
+      language: language ?? this.language,
+      speakerId: speakerId ?? this.speakerId,
+      speakerName: speakerName ?? this.speakerName,
+    );
+  }
+
   /// Duration of the speech segment
   Duration get duration => endTime.difference(startTime);
 
@@ -88,6 +109,32 @@ class SpeechSegment {
       language: json['language'] as String,
       speakerId: json['speakerId'] as String,
       speakerName: json['speakerName'] as String?,
+    );
+  }
+
+  /// Convert to map for isolate communication
+  Map<String, dynamic> toMap() {
+    return {
+      'text': text,
+      'startTime': startTime.toIso8601String(),
+      'endTime': endTime.toIso8601String(),
+      'confidence': confidence,
+      'language': language,
+      'speakerId': speakerId,
+      'speakerName': speakerName,
+    };
+  }
+
+  /// Create from map for isolate communication
+  factory SpeechSegment.fromMap(Map<String, dynamic> map) {
+    return SpeechSegment(
+      text: map['text'] as String,
+      startTime: DateTime.parse(map['startTime'] as String),
+      endTime: DateTime.parse(map['endTime'] as String),
+      confidence: (map['confidence'] as num).toDouble(),
+      language: map['language'] as String,
+      speakerId: map['speakerId'] as String,
+      speakerName: map['speakerName'] as String?,
     );
   }
 
