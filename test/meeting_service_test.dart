@@ -23,7 +23,7 @@ void main() {
 
     test('should start meeting successfully', () async {
       await meetingService.initialize();
-      
+
       final started = await meetingService.startMeeting(title: 'Test Meeting');
       expect(started, isTrue);
       expect(meetingService.recordingState, RecordingState.recording);
@@ -34,11 +34,11 @@ void main() {
     test('should pause and resume meeting', () async {
       await meetingService.initialize();
       await meetingService.startMeeting();
-      
+
       final paused = await meetingService.pauseMeeting();
       expect(paused, isTrue);
       expect(meetingService.recordingState, RecordingState.paused);
-      
+
       final resumed = await meetingService.resumeMeeting();
       expect(resumed, isTrue);
       expect(meetingService.recordingState, RecordingState.recording);
@@ -47,7 +47,7 @@ void main() {
     test('should stop meeting successfully', () async {
       await meetingService.initialize();
       await meetingService.startMeeting();
-      
+
       final stopped = await meetingService.stopMeeting();
       expect(stopped, isTrue);
       expect(meetingService.recordingState, RecordingState.stopped);
@@ -56,7 +56,7 @@ void main() {
 
     test('should handle available audio sources', () async {
       await meetingService.initialize();
-      
+
       expect(meetingService.availableAudioSources, isNotEmpty);
       expect(meetingService.supportsSystemAudio, isTrue);
     });
