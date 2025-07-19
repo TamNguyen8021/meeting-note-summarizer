@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'summarization_interface.dart';
 import 'speech_recognition_interface.dart';
-import 'model_manager.dart';
+import 'enhanced_model_manager.dart';
 
 /// Native Llama implementation for text summarization
 /// Uses llama.cpp through FFI for cross-platform compatibility

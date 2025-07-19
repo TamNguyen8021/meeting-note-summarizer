@@ -5,7 +5,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
 import 'speech_recognition_interface.dart';
-import 'model_manager.dart';
+import 'enhanced_model_manager.dart';
 
 /// Native Whisper implementation for speech recognition
 /// Uses whisper.cpp through FFI for cross-platform compatibility
