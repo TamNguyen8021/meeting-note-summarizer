@@ -41,14 +41,16 @@ class _HomeScreenState extends State<HomeScreen>
       // Use a post-frame callback to ensure the widget is mounted
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        
-        final meetingService = Provider.of<MeetingService>(context, listen: false);
+
+        final meetingService =
+            Provider.of<MeetingService>(context, listen: false);
         final success = await meetingService.initialize();
 
         if (!success && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(meetingService.lastError ?? 'Failed to initialize services'),
+              content: Text(
+                  meetingService.lastError ?? 'Failed to initialize services'),
               backgroundColor: Colors.red,
               action: SnackBarAction(
                 label: 'Retry',

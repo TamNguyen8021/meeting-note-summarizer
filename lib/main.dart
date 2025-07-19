@@ -8,7 +8,7 @@ import 'services/meeting_service.dart';
 void main() {
   // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   runApp(const MeetingSummarizerApp());
 }
 
