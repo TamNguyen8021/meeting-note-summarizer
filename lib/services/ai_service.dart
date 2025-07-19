@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../core/audio/audio_chunk.dart';
 import '../core/ai/speech_recognition_interface.dart';
 import '../core/ai/summarization_interface.dart';
+import '../core/ai/model_manager.dart';
+import '../core/ai/whisper_speech_recognition.dart';
+import '../core/ai/llama_summarization.dart';
 import 'mock_speech_recognition.dart';
 import 'mock_summarization.dart';
 
@@ -12,6 +15,7 @@ import 'mock_summarization.dart';
 class AiService extends ChangeNotifier {
   late final SpeechRecognitionInterface _speechRecognition;
   late final SummarizationInterface _summarization;
+  late final ModelManager _modelManager;
 
   // State
   bool _isInitialized = false;
@@ -30,10 +34,41 @@ class AiService extends ChangeNotifier {
   AiService({
     SpeechRecognitionInterface? speechRecognition,
     SummarizationInterface? summarization,
+    ModelManager? modelManager,
+    bool useMockImplementations = true, // Default to mocks for development
   }) {
-    // Use mock implementations for now
-    _speechRecognition = speechRecognition ?? MockSpeechRecognition();
-    _summarization = summarization ?? MockSummarization();
+    _modelManager = modelManager ?? ModelManager();
+
+    // Use mocks by default for development, real implementations when ready
+    if (useMockImplementations || kDebugMode) {
+      _speechRecognition = speechRecognition ?? MockSpeechRecognition();
+      _summarization = summarization ?? MockSummarization();
+    } else {
+      _speechRecognition = speechRecognition ??
+          WhisperSpeechRecognition(modelManager: _modelManager);
+      _summarization =
+          summarization ?? LlamaSummarization(modelManager: _modelManager);
+    }
+
+    // Initialize model manager in background (non-blocking)
+    _initializeModelManager();
+  }
+
+  /// Initialize model manager in background
+  void _initializeModelManager() {
+    Future.microtask(() async {
+      try {
+        await _modelManager.initialize();
+        debugPrint('Model manager initialized successfully');
+      } catch (e) {
+        debugPrint('Failed to initialize model manager: $e');
+        // Continue with mock implementations
+      }
+
+      // Mark as initialized regardless of model manager status
+      _isInitialized = true;
+      notifyListeners();
+    });
   }
 
   // Getters
@@ -45,6 +80,7 @@ class AiService extends ChangeNotifier {
       List.unmodifiable(_allSpeechSegments);
   List<MeetingSummary> get summaries => List.unmodifiable(_summaries);
   List<String> get identifiedSpeakers => _speechRecognition.identifiedSpeakers;
+  ModelManager get modelManager => _modelManager;
 
   /// Initialize the AI service
   Future<bool> initialize() async {

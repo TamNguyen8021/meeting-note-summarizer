@@ -6,8 +6,10 @@ import '../core/models/meeting_session.dart';
 import '../core/enums/recording_state.dart';
 import '../core/audio/audio_source.dart';
 import '../core/audio/audio_chunk.dart';
+import '../core/audio/audio_visualizer.dart';
 import '../core/ai/speech_recognition_interface.dart';
 import '../core/ai/summarization_interface.dart' as ai_summary;
+import '../core/processing/realtime_processing_service.dart';
 import 'audio_service.dart';
 import 'ai_service.dart';
 
@@ -16,6 +18,7 @@ import 'ai_service.dart';
 class MeetingService extends ChangeNotifier {
   final AudioService _audioService;
   final AiService _aiService;
+  final RealTimeProcessingService _realtimeService;
   final Uuid _uuid = const Uuid();
 
   // Current session state
@@ -33,8 +36,10 @@ class MeetingService extends ChangeNotifier {
   MeetingService({
     AudioService? audioService,
     AiService? aiService,
+    RealTimeProcessingService? realtimeService,
   })  : _audioService = audioService ?? AudioService(),
-        _aiService = aiService ?? AiService() {
+        _aiService = aiService ?? AiService(),
+        _realtimeService = realtimeService ?? RealTimeProcessingService() {
     // Initialize services safely
     _safeInitialize();
   }
@@ -61,6 +66,7 @@ class MeetingService extends ChangeNotifier {
   // Audio service getters
   bool get isAudioInitialized => _audioService.isInitialized;
   bool get isAiInitialized => _aiService.isInitialized;
+  bool get isRealtimeInitialized => _realtimeService.isInitialized;
   double get currentAudioLevel => _audioService.currentAudioLevel;
   List<AudioSource> get availableAudioSources => _audioService.availableSources;
   AudioSource? get selectedAudioSource => _audioService.selectedSource;
@@ -70,6 +76,15 @@ class MeetingService extends ChangeNotifier {
   String get currentLanguage => _aiService.currentLanguage;
   List<String> get identifiedSpeakers => _aiService.identifiedSpeakers;
   bool get isProcessing => _aiService.isProcessing;
+
+  // Real-time processing getters
+  Stream<AudioVisualizerData> get audioVisualization =>
+      _realtimeService.visualizationData;
+  List<SpeechSegment> get recentSpeechSegments =>
+      _realtimeService.speechSegments;
+  List<ai_summary.MeetingSummary> get recentSummaries =>
+      _realtimeService.summaries;
+  Map<String, dynamic> get processingStats => _realtimeService.performanceStats;
 
   /// Initialize the meeting service
   Future<bool> initialize() async {
@@ -90,6 +105,13 @@ class MeetingService extends ChangeNotifier {
         _lastError = _aiService.lastError ?? 'Failed to initialize AI';
         notifyListeners();
         return false;
+      }
+
+      // Initialize real-time processing service
+      final realtimeSuccess = await _realtimeService.initialize();
+      if (!realtimeSuccess) {
+        debugPrint(
+            'Real-time processing initialization failed, continuing with basic functionality');
       }
 
       // Set up audio processing stream
