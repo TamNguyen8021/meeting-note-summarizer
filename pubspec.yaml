@@ -19,7 +19,7 @@ dependencies:
   # State management
   provider: ^6.1.1
   # Utilities
-  uuid: ^4.1.0
+  uuid: ^3.0.7
   intl: ^0.18.1
   # AI/ML integration
   ffi: ^2.1.0
@@ -29,6 +29,20 @@ dependencies:
   archive: ^3.4.10
   # Isolates for background processing
   compute: ^1.0.0
+  # Audio format conversion
+  wav: ^1.0.0
+  # File operations
+  file_picker: ^8.0.0+1
+  # Platform-specific audio capture
+  flutter_sound: ^9.2.13
+  # Native audio processing
+  audio_session: ^0.1.19
+  # JSON serialization
+  json_annotation: ^4.8.1
+  # Crypto for model verification
+  crypto: ^3.0.3
+  # Platform detection
+  platform: ^3.1.4
 
 dev_dependencies:
   flutter_test:
@@ -37,6 +51,8 @@ dev_dependencies:
   # Testing utilities
   mockito: ^5.4.2
   build_runner: ^2.4.7
+  # JSON code generation
+  json_serializable: ^6.7.1
 
 flutter:
   uses-material-design: true
