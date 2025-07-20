@@ -5,6 +5,7 @@ import '../widgets/summary_view.dart';
 import '../widgets/comments_section.dart';
 import '../../core/enums/recording_state.dart';
 import '../../services/meeting_service.dart';
+import 'audio_test_screen.dart';
 
 /// Main home screen for the Meeting Summarizer app
 /// Provides the primary interface for recording and viewing meeting summaries
@@ -193,6 +194,17 @@ class _HomeScreenState extends State<HomeScreen>
                       ? _buildDesktopLayout(meetingService)
                       : _buildMobileLayout(meetingService))
                   : _buildLoadingView(meetingService),
+              floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AudioTestScreen(),
+                    ),
+                  );
+                },
+                child: const Icon(Icons.mic_external_on),
+                tooltip: 'Audio Test',
+              ),
             );
           },
         );
