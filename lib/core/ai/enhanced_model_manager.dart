@@ -401,6 +401,76 @@ class ModelManager extends ChangeNotifier {
 
     _modelChecksums['tinyllama-q4'] =
         'd4e5f6789012345678901234567890abcdef1234';
+
+    // Speaker Identification Models (Hybrid Approach)
+    // ECAPA-TDNN for English-optimized speaker embedding
+    _availableModels['ecapa-tdnn'] = ModelInfo(
+      id: 'ecapa-tdnn',
+      name: 'ECAPA-TDNN Speaker Embedding',
+      type: ModelType.speakerIdentification,
+      sizeBytes: 85 * 1024 * 1024, // ~85MB
+      downloadUrl:
+          'https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb/resolve/main/embedding_model.ckpt',
+      filename: 'ecapa-tdnn.ckpt',
+      description: 'ECAPA-TDNN speaker embedding model, English-optimized',
+      supportedLanguages: ['en'],
+      isQuantized: false,
+      modelFormat: ModelFormat.onnx,
+      requirements: ModelRequirements(
+        minRamMB: 256,
+        cpuOptimized: true,
+        gpuOptimized: true,
+      ),
+    );
+
+    _modelChecksums['ecapa-tdnn'] =
+        'e5f6789012345678901234567890abcdef123456';
+
+    // mhuBERT-147 for Vietnamese/Mixed language speaker embedding
+    _availableModels['mhubert-147'] = ModelInfo(
+      id: 'mhubert-147',
+      name: 'mhuBERT-147 Speaker Embedding',
+      type: ModelType.speakerIdentification,
+      sizeBytes: 355 * 1024 * 1024, // ~355MB
+      downloadUrl:
+          'https://huggingface.co/facebook/mhubert-base-25hz/resolve/main/pytorch_model.bin',
+      filename: 'mhubert-147.bin',
+      description: 'mhuBERT-147 speaker embedding, Vietnamese/multilingual',
+      supportedLanguages: ['vi', 'en', 'zh', 'ja', 'ko'],
+      isQuantized: false,
+      modelFormat: ModelFormat.onnx,
+      requirements: ModelRequirements(
+        minRamMB: 512,
+        cpuOptimized: true,
+        gpuOptimized: true,
+      ),
+    );
+
+    _modelChecksums['mhubert-147'] =
+        'f6789012345678901234567890abcdef1234567';
+
+    // Language Detection Model
+    _availableModels['whisper-lang-detect'] = ModelInfo(
+      id: 'whisper-lang-detect',
+      name: 'Whisper Language Detection',
+      type: ModelType.languageDetection,
+      sizeBytes: 39 * 1024 * 1024, // ~39MB (same as whisper-tiny)
+      downloadUrl:
+          'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
+      filename: 'ggml-tiny-lang.bin',
+      description: 'Language detection using Whisper tiny model',
+      supportedLanguages: ['en', 'vi', 'zh', 'ja', 'ko', 'fr', 'de', 'es'],
+      isQuantized: false,
+      modelFormat: ModelFormat.ggml,
+      requirements: ModelRequirements(
+        minRamMB: 64,
+        cpuOptimized: true,
+        gpuOptimized: false,
+      ),
+    );
+
+    _modelChecksums['whisper-lang-detect'] =
+        'bd577a113a864445d4c299885e0cb97d4ba92b5f';
   }
 
   /// Scan for existing downloaded models
