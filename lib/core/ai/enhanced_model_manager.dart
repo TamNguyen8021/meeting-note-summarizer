@@ -423,8 +423,7 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['ecapa-tdnn'] =
-        'e5f6789012345678901234567890abcdef123456';
+    _modelChecksums['ecapa-tdnn'] = 'e5f6789012345678901234567890abcdef123456';
 
     // mhuBERT-147 for Vietnamese/Mixed language speaker embedding
     _availableModels['mhubert-147'] = ModelInfo(
@@ -446,8 +445,7 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['mhubert-147'] =
-        'f6789012345678901234567890abcdef1234567';
+    _modelChecksums['mhubert-147'] = 'f6789012345678901234567890abcdef1234567';
 
     // Language Detection Model
     _availableModels['whisper-lang-detect'] = ModelInfo(
