@@ -1,333 +1,267 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../services/meeting_service.dart';
 import '../../core/enums/recording_state.dart';
+import 'audio_visualizer.dart';
+import 'ai_status_widget.dart';
 
-/// Control panel widget for managing recording state and displaying status
-/// Provides recording controls, audio visualization, and status information
 class ControlPanel extends StatelessWidget {
-  final RecordingState recordingState;
-  final double audioLevel;
-  final Duration elapsedTime;
-  final String currentLanguage;
-  final Function(RecordingState) onRecordingStateChanged;
-  final bool isCompact;
-
-  const ControlPanel({
-    super.key,
-    required this.recordingState,
-    required this.audioLevel,
-    required this.elapsedTime,
-    required this.currentLanguage,
-    required this.onRecordingStateChanged,
-    this.isCompact = false,
-  });
-
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Recording controls
-          _buildRecordingControls(context),
+    return Consumer<MeetingService>(
+      builder: (context, meetingService, child) {
+        return Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // Recording Status Header
+              Row(
+                children: [
+                  Icon(
+                    _getStatusIcon(meetingService.recordingState),
+                    color: _getStatusColor(meetingService.recordingState),
+                    size: 24,
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    _getStatusText(meetingService.recordingState),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  Spacer(),
+                  Text(
+                    _formatDuration(meetingService.currentDuration),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontFamily: 'monospace',
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.7),
+                        ),
+                  ),
+                ],
+              ),
 
-          if (!isCompact) ...[
-            const SizedBox(height: 24),
-            // Audio visualizer
-            _buildAudioVisualizer(context),
+              SizedBox(height: 20),
 
-            const SizedBox(height: 24),
-            // Status information
-            _buildStatusInfo(context),
-          ] else ...[
-            const SizedBox(height: 16),
-            // Compact status for mobile
-            _buildCompactStatus(context),
-          ],
-        ],
-      ),
+              // Audio Visualizer
+              Container(
+                height: 60,
+                child: AudioVisualizer(
+                  isRecording:
+                      meetingService.recordingState == RecordingState.recording,
+                  height: 60,
+                ),
+              ),
+
+              SizedBox(height: 20),
+
+              // Control Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  // Start/Resume button
+                  if (meetingService.recordingState == RecordingState.stopped ||
+                      meetingService.recordingState == RecordingState.paused)
+                    _buildControlButton(
+                      context,
+                      icon: meetingService.recordingState ==
+                              RecordingState.stopped
+                          ? Icons.play_arrow
+                          : Icons.play_arrow,
+                      label: meetingService.recordingState ==
+                              RecordingState.stopped
+                          ? 'Start'
+                          : 'Resume',
+                      color: Colors.green,
+                      onPressed: () async {
+                        try {
+                          if (meetingService.recordingState ==
+                              RecordingState.stopped) {
+                            await meetingService.startMeeting();
+                          } else {
+                            await meetingService.resumeMeeting();
+                          }
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ${e.toString()}')),
+                          );
+                        }
+                      },
+                    ),
+
+                  // Pause button
+                  if (meetingService.recordingState == RecordingState.recording)
+                    _buildControlButton(
+                      context,
+                      icon: Icons.pause,
+                      label: 'Pause',
+                      color: Colors.orange,
+                      onPressed: () async {
+                        try {
+                          await meetingService.pauseMeeting();
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ${e.toString()}')),
+                          );
+                        }
+                      },
+                    ),
+
+                  // Stop button
+                  if (meetingService.recordingState != RecordingState.stopped)
+                    _buildControlButton(
+                      context,
+                      icon: Icons.stop,
+                      label: 'Stop',
+                      color: Colors.red,
+                      onPressed: () async {
+                        try {
+                          await meetingService.stopMeeting();
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: ${e.toString()}')),
+                          );
+                        }
+                      },
+                    ),
+                ],
+              ),
+
+              SizedBox(height: 20),
+
+              // AI Status Widget
+              AiStatusWidget(),
+
+              // Recording Info
+              if (meetingService.recordingState != RecordingState.stopped) ...[
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceVariant
+                        .withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.mic,
+                        size: 16,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Segments: ${meetingService.liveSegments.length}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      Spacer(),
+                      Icon(
+                        Icons.memory,
+                        size: 16,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Processing...',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
-  /// Build the main recording control buttons
-  Widget _buildRecordingControls(BuildContext context) {
-    return Row(
-      mainAxisAlignment:
-          isCompact ? MainAxisAlignment.spaceEvenly : MainAxisAlignment.center,
-      children: [
-        // Start/Resume button
-        _buildControlButton(
-          context: context,
-          icon: recordingState == RecordingState.paused
-              ? Icons.play_arrow
-              : Icons.fiber_manual_record,
-          label: recordingState == RecordingState.paused ? 'Resume' : 'Start',
-          color: Theme.of(context).colorScheme.primary,
-          onPressed: recordingState == RecordingState.recording
-              ? null
-              : () => onRecordingStateChanged(RecordingState.recording),
-        ),
-
-        if (!isCompact) const SizedBox(width: 16),
-
-        // Pause button
-        _buildControlButton(
-          context: context,
-          icon: Icons.pause,
-          label: 'Pause',
-          color: Colors.orange,
-          onPressed: recordingState == RecordingState.recording
-              ? () => onRecordingStateChanged(RecordingState.paused)
-              : null,
-        ),
-
-        if (!isCompact) const SizedBox(width: 16),
-
-        // Stop button
-        _buildControlButton(
-          context: context,
-          icon: Icons.stop,
-          label: 'Stop',
-          color: Colors.red,
-          onPressed: recordingState != RecordingState.stopped
-              ? () => onRecordingStateChanged(RecordingState.stopped)
-              : null,
-        ),
-      ],
-    );
-  }
-
-  /// Build individual control button
-  Widget _buildControlButton({
-    required BuildContext context,
+  Widget _buildControlButton(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback? onPressed,
+    required VoidCallback onPressed,
   }) {
-    final isEnabled = onPressed != null;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: isCompact ? 48 : 64,
-          height: isCompact ? 48 : 64,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isEnabled ? color : Colors.grey.shade300,
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color: color.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: IconButton(
-            onPressed: onPressed,
-            icon: Icon(
-              icon,
-              color: Colors.white,
-              size: isCompact ? 24 : 32,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isCompact ? 12 : 14,
-            fontWeight: FontWeight.w500,
-            color: isEnabled
-                ? Theme.of(context).textTheme.bodyMedium?.color
-                : Colors.grey,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Build audio level visualizer
-  Widget _buildAudioVisualizer(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Audio Level',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-
-            // Audio level bar
-            Container(
-              height: 20,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.grey.shade300,
-              ),
-              child: FractionallySizedBox(
-                alignment: Alignment.centerLeft,
-                widthFactor: audioLevel,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.green,
-                        audioLevel > 0.7 ? Colors.orange : Colors.green,
-                        audioLevel > 0.9 ? Colors.red : Colors.green,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-            Text(
-              '${(audioLevel * 100).toInt()}%',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
   }
 
-  /// Build detailed status information
-  Widget _buildStatusInfo(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Status Information',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            _buildStatusRow(
-              context: context,
-              label: 'Status',
-              value: _getStatusText(),
-              valueColor: _getStatusColor(),
-            ),
-            _buildStatusRow(
-              context: context,
-              label: 'Timer',
-              value: _formatDuration(elapsedTime),
-            ),
-            _buildStatusRow(
-              context: context,
-              label: 'Language',
-              value: currentLanguage,
-            ),
-            _buildStatusRow(
-              context: context,
-              label: 'Source',
-              value: 'System Audio', // TODO: Make this dynamic
-            ),
-          ],
-        ),
-      ),
-    );
+  IconData _getStatusIcon(RecordingState state) {
+    switch (state) {
+      case RecordingState.stopped:
+        return Icons.radio_button_unchecked;
+      case RecordingState.recording:
+        return Icons.fiber_manual_record;
+      case RecordingState.paused:
+        return Icons.pause_circle;
+    }
   }
 
-  /// Build compact status for mobile layout
-  Widget _buildCompactStatus(BuildContext context) {
-    return Row(
-      children: [
-        // Status indicator
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _getStatusColor(),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          _getStatusText(),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const Spacer(),
-        Text(
-          _formatDuration(elapsedTime),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-    );
+  Color _getStatusColor(RecordingState state) {
+    switch (state) {
+      case RecordingState.stopped:
+        return Colors.grey;
+      case RecordingState.recording:
+        return Colors.red;
+      case RecordingState.paused:
+        return Colors.orange;
+    }
   }
 
-  /// Build a status information row
-  Widget _buildStatusRow({
-    required BuildContext context,
-    required String label,
-    required String value,
-    Color? valueColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: valueColor,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Get status text based on recording state
-  String _getStatusText() {
-    switch (recordingState) {
+  String _getStatusText(RecordingState state) {
+    switch (state) {
+      case RecordingState.stopped:
+        return 'Ready to Record';
       case RecordingState.recording:
         return 'Recording';
       case RecordingState.paused:
         return 'Paused';
-      case RecordingState.stopped:
-        return 'Stopped';
     }
   }
 
-  /// Get status color based on recording state
-  Color _getStatusColor() {
-    switch (recordingState) {
-      case RecordingState.recording:
-        return Colors.green;
-      case RecordingState.paused:
-        return Colors.orange;
-      case RecordingState.stopped:
-        return Colors.red;
-    }
-  }
-
-  /// Format duration for display
   String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-    final hours = duration.inHours;
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String hours = twoDigits(duration.inHours);
+    String minutes = twoDigits(duration.inMinutes.remainder(60));
+    String seconds = twoDigits(duration.inSeconds.remainder(60));
 
-    if (hours > 0) {
-      return '${hours.toString().padLeft(2, '0')}:$minutes:$seconds';
+    if (duration.inHours > 0) {
+      return '$hours:$minutes:$seconds';
+    } else {
+      return '$minutes:$seconds';
     }
-    return '$minutes:$seconds';
   }
 }
