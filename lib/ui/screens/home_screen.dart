@@ -6,6 +6,8 @@ import '../widgets/comments_section.dart';
 import '../../core/enums/recording_state.dart';
 import '../../services/meeting_service.dart';
 import 'audio_test_screen.dart';
+import 'model_management_screen.dart';
+import 'meeting_dashboard.dart';
 
 /// Main home screen for the Meeting Summarizer app
 /// Provides the primary interface for recording and viewing meeting summaries
@@ -171,6 +173,30 @@ class _HomeScreenState extends State<HomeScreen>
               appBar: AppBar(
                 title: const Text('Meeting Summarizer'),
                 actions: [
+                  // Dashboard button
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const MeetingDashboard(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.dashboard),
+                    tooltip: 'Dashboard',
+                  ),
+                  // AI Models button
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const ModelManagementScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.smart_toy),
+                    tooltip: 'AI Models',
+                  ),
                   // Language indicator
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -254,13 +280,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
-            child: ControlPanel(
-              recordingState: meetingService.recordingState,
-              audioLevel: meetingService.currentAudioLevel,
-              elapsedTime: meetingService.currentDuration,
-              currentLanguage: meetingService.currentLanguage,
-              onRecordingStateChanged: _onRecordingStateChanged,
-            ),
+            child: ControlPanel(),
           ),
         ),
         // Right panel - Summary and Comments (70%)
@@ -317,14 +337,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
           ),
-          child: ControlPanel(
-            recordingState: meetingService.recordingState,
-            audioLevel: meetingService.currentAudioLevel,
-            elapsedTime: meetingService.currentDuration,
-            currentLanguage: meetingService.currentLanguage,
-            onRecordingStateChanged: _onRecordingStateChanged,
-            isCompact: true, // Mobile-optimized layout
-          ),
+          child: ControlPanel(),
         ),
         // Tab bar
         Container(
