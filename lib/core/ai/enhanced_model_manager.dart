@@ -69,7 +69,7 @@ class ModelInfo {
   final bool isQuantized;
   final ModelFormat modelFormat;
   final ModelRequirements requirements;
-  
+
   // Runtime fields
   String? localPath;
   bool isDownloaded;
@@ -159,7 +159,8 @@ class ModelManager extends ChangeNotifier {
   bool _isInitialized = false;
   final Map<String, ModelInfo> _availableModels = {};
   final Map<String, ModelInfo> _loadedModels = {};
-  final Map<String, dynamic> _modelInstances = {}; // Store actual model instances
+  final Map<String, dynamic> _modelInstances =
+      {}; // Store actual model instances
   String? _lastError;
 
   // Download progress tracking
@@ -250,7 +251,8 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['whisper-tiny'] = 'bd577a113a864445d4c299885e0cb97d4ba92b5f';
+    _modelChecksums['whisper-tiny'] =
+        'bd577a113a864445d4c299885e0cb97d4ba92b5f';
 
     _availableModels['whisper-base'] = ModelInfo(
       id: 'whisper-base',
@@ -271,7 +273,8 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['whisper-base'] = 'dc4dfd3b7ada4b447c1dea10b5b1b3b7a8f58e35';
+    _modelChecksums['whisper-base'] =
+        'dc4dfd3b7ada4b447c1dea10b5b1b3b7a8f58e35';
 
     _availableModels['whisper-small'] = ModelInfo(
       id: 'whisper-small',
@@ -282,7 +285,18 @@ class ModelManager extends ChangeNotifier {
           'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
       filename: 'ggml-small.bin',
       description: 'Small Whisper model, higher accuracy, 244MB',
-      supportedLanguages: ['en', 'vi', 'zh', 'ja', 'ko', 'fr', 'de', 'es', 'it', 'pt'],
+      supportedLanguages: [
+        'en',
+        'vi',
+        'zh',
+        'ja',
+        'ko',
+        'fr',
+        'de',
+        'es',
+        'it',
+        'pt'
+      ],
       isQuantized: false,
       modelFormat: ModelFormat.ggml,
       requirements: ModelRequirements(
@@ -292,7 +306,8 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['whisper-small'] = 'f1b4fe3ddd39c09c6e0e3ddc8eaf7e6b7ecc9e44';
+    _modelChecksums['whisper-small'] =
+        'f1b4fe3ddd39c09c6e0e3ddc8eaf7e6b7ecc9e44';
 
     // Text Summarization Models (Llama GGUF format)
     _availableModels['llama-3.2-1b-q4'] = ModelInfo(
@@ -303,7 +318,8 @@ class ModelManager extends ChangeNotifier {
       downloadUrl:
           'https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf',
       filename: 'llama-3.2-1b-q4.gguf',
-      description: 'Quantized Llama 3.2 1B model for summarization, mobile-friendly',
+      description:
+          'Quantized Llama 3.2 1B model for summarization, mobile-friendly',
       supportedLanguages: ['en', 'vi'],
       isQuantized: true,
       modelFormat: ModelFormat.gguf,
@@ -314,7 +330,8 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['llama-3.2-1b-q4'] = 'a1b2c3d4e5f6789012345678901234567890abcd';
+    _modelChecksums['llama-3.2-1b-q4'] =
+        'a1b2c3d4e5f6789012345678901234567890abcd';
 
     _availableModels['llama-3.2-3b-q4'] = ModelInfo(
       id: 'llama-3.2-3b-q4',
@@ -335,7 +352,8 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['llama-3.2-3b-q4'] = 'b2c3d4e5f6789012345678901234567890abcdef';
+    _modelChecksums['llama-3.2-3b-q4'] =
+        'b2c3d4e5f6789012345678901234567890abcdef';
 
     // Compact alternative
     _availableModels['phi-3-mini-q4'] = ModelInfo(
@@ -357,7 +375,8 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['phi-3-mini-q4'] = 'c3d4e5f6789012345678901234567890abcdef12';
+    _modelChecksums['phi-3-mini-q4'] =
+        'c3d4e5f6789012345678901234567890abcdef12';
 
     // Lightweight alternative for mobile
     _availableModels['tinyllama-q4'] = ModelInfo(
@@ -368,7 +387,8 @@ class ModelManager extends ChangeNotifier {
       downloadUrl:
           'https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.q4_k_m.gguf',
       filename: 'tinyllama-q4.gguf',
-      description: 'Ultra-compact model for basic summarization, mobile optimized',
+      description:
+          'Ultra-compact model for basic summarization, mobile optimized',
       supportedLanguages: ['en'],
       isQuantized: true,
       modelFormat: ModelFormat.gguf,
@@ -379,27 +399,38 @@ class ModelManager extends ChangeNotifier {
       ),
     );
 
-    _modelChecksums['tinyllama-q4'] = 'd4e5f6789012345678901234567890abcdef1234';
+    _modelChecksums['tinyllama-q4'] =
+        'd4e5f6789012345678901234567890abcdef1234';
   }
 
   /// Scan for existing downloaded models
   Future<void> _scanExistingModels() async {
     try {
       final files = await _modelsDirectory.list().toList();
-      
+
       for (final fileEntity in files) {
         if (fileEntity is File) {
           final filename = path.basename(fileEntity.path);
-          
+
           // Find matching model by filename
           final modelEntry = _availableModels.entries.firstWhere(
             (entry) => entry.value.filename == filename,
-            orElse: () => MapEntry('', ModelInfo(
-              id: '', name: '', type: ModelType.speechRecognition,
-              sizeBytes: 0, downloadUrl: '', filename: '', description: '',
-              supportedLanguages: [], isQuantized: false, modelFormat: ModelFormat.ggml,
-              requirements: ModelRequirements(minRamMB: 0, cpuOptimized: false, gpuOptimized: false),
-            )),
+            orElse: () => MapEntry(
+                '',
+                ModelInfo(
+                  id: '',
+                  name: '',
+                  type: ModelType.speechRecognition,
+                  sizeBytes: 0,
+                  downloadUrl: '',
+                  filename: '',
+                  description: '',
+                  supportedLanguages: [],
+                  isQuantized: false,
+                  modelFormat: ModelFormat.ggml,
+                  requirements: ModelRequirements(
+                      minRamMB: 0, cpuOptimized: false, gpuOptimized: false),
+                )),
           );
 
           if (modelEntry.key.isNotEmpty) {
@@ -409,13 +440,13 @@ class ModelManager extends ChangeNotifier {
               isDownloaded: true,
               downloadedAt: DateTime.now(),
             );
-            
+
             _loadedModels[modelInfo.id] = updatedModel;
             _availableModels[modelInfo.id] = updatedModel;
           }
         }
       }
-      
+
       debugPrint('Found ${_loadedModels.length} existing models');
     } catch (e) {
       debugPrint('Error scanning existing models: $e');
@@ -425,20 +456,20 @@ class ModelManager extends ChangeNotifier {
   /// Verify integrity of downloaded models
   Future<void> _verifyModelIntegrity() async {
     final toRemove = <String>[];
-    
+
     for (final entry in _loadedModels.entries) {
       final modelId = entry.key;
       final model = entry.value;
-      
+
       if (model.localPath != null) {
         final file = File(model.localPath!);
-        
+
         if (!await file.exists()) {
           debugPrint('Model file missing: ${model.filename}');
           toRemove.add(modelId);
           continue;
         }
-        
+
         // Verify file size
         final stat = await file.stat();
         if (stat.size != model.sizeBytes) {
@@ -446,16 +477,16 @@ class ModelManager extends ChangeNotifier {
           toRemove.add(modelId);
           continue;
         }
-        
+
         // TODO: Verify checksum if available
       }
     }
-    
+
     // Remove corrupted models
     for (final modelId in toRemove) {
       await _removeModel(modelId);
     }
-    
+
     if (toRemove.isNotEmpty) {
       debugPrint('Removed ${toRemove.length} corrupted models');
     }
@@ -490,7 +521,7 @@ class ModelManager extends ChangeNotifier {
       notifyListeners();
 
       final success = await _downloadModelFile(modelInfo);
-      
+
       if (success) {
         final targetPath = path.join(_modelsDirectory.path, modelInfo.filename);
         final updatedModel = modelInfo.copyWith(
@@ -498,15 +529,15 @@ class ModelManager extends ChangeNotifier {
           isDownloaded: true,
           downloadedAt: DateTime.now(),
         );
-        
+
         _loadedModels[modelId] = updatedModel;
         _availableModels[modelId] = updatedModel;
-        
+
         _downloadStates[modelId] = ModelDownloadState(
           progress: 1.0,
           isCompleted: true,
         );
-        
+
         debugPrint('Model downloaded successfully: ${modelInfo.name}');
       } else {
         _downloadStates[modelId] = ModelDownloadState(
@@ -533,8 +564,9 @@ class ModelManager extends ChangeNotifier {
   Future<bool> _downloadModelFile(ModelInfo modelInfo) async {
     try {
       final targetPath = path.join(_modelsDirectory.path, modelInfo.filename);
-      final response = await http.Client().send(http.Request('GET', Uri.parse(modelInfo.downloadUrl)));
-      
+      final response = await http.Client()
+          .send(http.Request('GET', Uri.parse(modelInfo.downloadUrl)));
+
       if (response.statusCode != 200) {
         return false;
       }
@@ -552,7 +584,8 @@ class ModelManager extends ChangeNotifier {
 
           if (total > 0) {
             final progress = downloaded / total;
-            _downloadStates[modelInfo.id] = _downloadStates[modelInfo.id]!.copyWith(
+            _downloadStates[modelInfo.id] =
+                _downloadStates[modelInfo.id]!.copyWith(
               progress: progress,
             );
             notifyListeners();
@@ -601,10 +634,10 @@ class ModelManager extends ChangeNotifier {
         await file.delete();
       }
     }
-    
+
     _loadedModels.remove(modelId);
     _modelInstances.remove(modelId);
-    
+
     // Reset model info to not downloaded
     final availableModel = _availableModels[modelId];
     if (availableModel != null) {
@@ -614,7 +647,7 @@ class ModelManager extends ChangeNotifier {
         downloadedAt: null,
       );
     }
-    
+
     notifyListeners();
     return true;
   }
@@ -622,26 +655,29 @@ class ModelManager extends ChangeNotifier {
   /// Get recommended models for current device capability
   List<ModelInfo> getRecommendedModels() {
     final models = <ModelInfo>[];
-    
+
     // Add recommended Whisper model
-    final whisperModel = _availableModels['whisper-base'] ?? _availableModels['whisper-tiny'];
+    final whisperModel =
+        _availableModels['whisper-base'] ?? _availableModels['whisper-tiny'];
     if (whisperModel != null) {
       models.add(whisperModel);
     }
-    
+
     // Add recommended summarization model
-    final summaryModel = _availableModels['tinyllama-q4'] ?? _availableModels['llama-3.2-1b-q4'];
+    final summaryModel =
+        _availableModels['tinyllama-q4'] ?? _availableModels['llama-3.2-1b-q4'];
     if (summaryModel != null) {
       models.add(summaryModel);
     }
-    
+
     return models;
   }
 
   /// Clean up models to free space
   Future<void> cleanupModels({int? targetSizeBytes}) async {
     if (targetSizeBytes == null) {
-      targetSizeBytes = (maxTotalSizeBytes * 0.7).round(); // Keep 70% of max size
+      targetSizeBytes =
+          (maxTotalSizeBytes * 0.7).round(); // Keep 70% of max size
     }
 
     final currentSize = await getCurrentStorageSize();
@@ -652,8 +688,10 @@ class ModelManager extends ChangeNotifier {
     // Sort models by last accessed (oldest first)
     final modelEntries = _loadedModels.entries.toList();
     modelEntries.sort((a, b) {
-      final aTime = a.value.downloadedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final bTime = b.value.downloadedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final aTime =
+          a.value.downloadedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime =
+          b.value.downloadedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return aTime.compareTo(bTime);
     });
 
@@ -713,7 +751,7 @@ class ModelManager extends ChangeNotifier {
     final totalModels = _availableModels.length;
     final downloadedModels = _loadedModels.length;
     final loadedInstances = _modelInstances.length;
-    
+
     return {
       'totalModels': totalModels,
       'downloadedModels': downloadedModels,

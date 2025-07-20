@@ -8,9 +8,12 @@ import 'audio_visualizer.dart';
 /// Advanced audio processing pipeline with sliding window analysis
 /// Handles real-time audio segmentation, buffering, and preprocessing
 class AudioProcessingPipeline extends ChangeNotifier {
-  static const Duration _segmentDuration = Duration(seconds: 60); // 1-minute segments
-  static const Duration _overlapDuration = Duration(seconds: 10); // 10-second overlap
-  static const Duration _windowSize = Duration(seconds: 5); // 5-second analysis windows
+  static const Duration _segmentDuration =
+      Duration(seconds: 60); // 1-minute segments
+  static const Duration _overlapDuration =
+      Duration(seconds: 10); // 10-second overlap
+  static const Duration _windowSize =
+      Duration(seconds: 5); // 5-second analysis windows
   static const int _sampleRate = 16000;
   static const int _channels = 1;
 
@@ -18,25 +21,25 @@ class AudioProcessingPipeline extends ChangeNotifier {
   final List<AudioChunk> _rawBuffer = [];
   final List<AudioSegment> _processedSegments = [];
   final List<AudioChunk> _currentWindow = [];
-  
+
   // Processing state
   bool _isProcessing = false;
   bool _isInitialized = false;
   int _segmentCounter = 0;
   DateTime? _processingStartTime;
-  
+
   // Stream controllers
-  final StreamController<AudioSegment> _segmentController = 
+  final StreamController<AudioSegment> _segmentController =
       StreamController<AudioSegment>.broadcast();
-  final StreamController<AudioVisualizerData> _visualizerController = 
+  final StreamController<AudioVisualizerData> _visualizerController =
       StreamController<AudioVisualizerData>.broadcast();
-  final StreamController<AudioQualityMetrics> _qualityController = 
+  final StreamController<AudioQualityMetrics> _qualityController =
       StreamController<AudioQualityMetrics>.broadcast();
 
   // Audio analysis
   final AudioAnalyzer _analyzer = AudioAnalyzer();
   Timer? _processingTimer;
-  
+
   // Configuration
   final AudioProcessingConfig _config;
 
@@ -46,9 +49,11 @@ class AudioProcessingPipeline extends ChangeNotifier {
   // Getters
   bool get isProcessing => _isProcessing;
   bool get isInitialized => _isInitialized;
-  List<AudioSegment> get processedSegments => List.unmodifiable(_processedSegments);
+  List<AudioSegment> get processedSegments =>
+      List.unmodifiable(_processedSegments);
   Stream<AudioSegment> get segmentStream => _segmentController.stream;
-  Stream<AudioVisualizerData> get visualizerStream => _visualizerController.stream;
+  Stream<AudioVisualizerData> get visualizerStream =>
+      _visualizerController.stream;
   Stream<AudioQualityMetrics> get qualityStream => _qualityController.stream;
 
   /// Initialize the audio processing pipeline
@@ -79,7 +84,7 @@ class AudioProcessingPipeline extends ChangeNotifier {
     _processingStartTime = DateTime.now();
     _processingTimer?.cancel();
     _setupProcessingTimer();
-    
+
     notifyListeners();
   }
 
@@ -87,12 +92,12 @@ class AudioProcessingPipeline extends ChangeNotifier {
   Future<void> stopProcessing() async {
     _isProcessing = false;
     _processingTimer?.cancel();
-    
+
     // Process any remaining audio in buffer
     if (_rawBuffer.isNotEmpty) {
       await _processCurrentBuffer();
     }
-    
+
     _clearBuffers();
     notifyListeners();
   }
@@ -144,16 +149,16 @@ class AudioProcessingPipeline extends ChangeNotifier {
     try {
       // Create segment from current buffer
       final segment = await _createAudioSegment();
-      
+
       _processedSegments.add(segment);
       _segmentController.add(segment);
-      
+
       // Keep only recent segments in memory
       _trimProcessedSegments();
-      
+
       // Implement sliding window - keep overlap
       _implementSlidingWindow();
-      
+
       return segment;
     } catch (e) {
       debugPrint('Error processing audio buffer: $e');
@@ -165,19 +170,19 @@ class AudioProcessingPipeline extends ChangeNotifier {
     final segmentId = 'segment_${_segmentCounter++}';
     final startTime = _processingStartTime ?? DateTime.now();
     final endTime = DateTime.now();
-    
+
     // Combine all audio chunks into a single buffer
     final combinedAudio = _combineAudioChunks(_rawBuffer);
-    
+
     // Analyze audio properties
     final analysis = await _analyzer.analyzeSegment(combinedAudio);
-    
+
     // Detect speech regions
     final speechRegions = await _analyzer.detectSpeechRegions(
-      combinedAudio, 
+      combinedAudio,
       _config.speechThreshold,
     );
-    
+
     // Apply audio preprocessing
     final processedAudio = await _preprocessAudio(combinedAudio);
 
@@ -199,36 +204,37 @@ class AudioProcessingPipeline extends ChangeNotifier {
     if (chunks.isEmpty) return Float32List(0);
 
     final totalSamples = chunks.fold<int>(
-      0, 
+      0,
       (sum, chunk) => sum + chunk.sampleCount,
     );
-    
+
     final combined = Float32List(totalSamples);
     int offset = 0;
-    
+
     for (final chunk in chunks) {
       final chunkSamples = chunk.toFloat32Samples();
       combined.setRange(offset, offset + chunkSamples.length, chunkSamples);
       offset += chunkSamples.length;
     }
-    
+
     return combined;
   }
 
   Future<Float32List> _preprocessAudio(Float32List audio) async {
     // Apply noise reduction
-    var processed = await _analyzer.reduceNoise(audio, _config.noiseReductionLevel);
-    
+    var processed =
+        await _analyzer.reduceNoise(audio, _config.noiseReductionLevel);
+
     // Normalize audio levels
     processed = _analyzer.normalizeAudio(processed);
-    
+
     // Apply bandpass filter for speech frequencies
     processed = await _analyzer.applyBandpassFilter(
-      processed, 
-      lowFreq: 80, 
+      processed,
+      lowFreq: 80,
       highFreq: 8000,
     );
-    
+
     return processed;
   }
 
@@ -236,9 +242,11 @@ class AudioProcessingPipeline extends ChangeNotifier {
     if (_rawBuffer.isEmpty) return;
 
     // Calculate how much audio to keep for overlap
-    final overlapSamples = (_overlapDuration.inMilliseconds * _sampleRate / 1000).round();
-    final totalSamples = _rawBuffer.fold<int>(0, (sum, chunk) => sum + chunk.sampleCount);
-    
+    final overlapSamples =
+        (_overlapDuration.inMilliseconds * _sampleRate / 1000).round();
+    final totalSamples =
+        _rawBuffer.fold<int>(0, (sum, chunk) => sum + chunk.sampleCount);
+
     if (totalSamples <= overlapSamples) {
       // Keep all if less than overlap duration
       return;
@@ -247,17 +255,17 @@ class AudioProcessingPipeline extends ChangeNotifier {
     // Keep only the last overlap duration worth of audio
     final newBuffer = <AudioChunk>[];
     int samplesKept = 0;
-    
+
     for (int i = _rawBuffer.length - 1; i >= 0; i--) {
       final chunk = _rawBuffer[i];
       newBuffer.insert(0, chunk);
       samplesKept += chunk.sampleCount;
-      
+
       if (samplesKept >= overlapSamples) {
         break;
       }
     }
-    
+
     _rawBuffer.clear();
     _rawBuffer.addAll(newBuffer);
   }
@@ -275,15 +283,17 @@ class AudioProcessingPipeline extends ChangeNotifier {
   }
 
   bool _isValidAudioChunk(AudioChunk chunk) {
-    return chunk.sampleRate == _sampleRate && 
-           chunk.channels == _channels &&
-           chunk.data.isNotEmpty;
+    return chunk.sampleRate == _sampleRate &&
+        chunk.channels == _channels &&
+        chunk.data.isNotEmpty;
   }
 
   void _trimCurrentWindow() {
-    final maxWindowSamples = (_windowSize.inMilliseconds * _sampleRate / 1000).round();
-    final currentSamples = _currentWindow.fold<int>(0, (sum, chunk) => sum + chunk.sampleCount);
-    
+    final maxWindowSamples =
+        (_windowSize.inMilliseconds * _sampleRate / 1000).round();
+    final currentSamples =
+        _currentWindow.fold<int>(0, (sum, chunk) => sum + chunk.sampleCount);
+
     while (currentSamples > maxWindowSamples && _currentWindow.isNotEmpty) {
       _currentWindow.removeAt(0);
     }
@@ -360,17 +370,19 @@ class AudioSegment {
   /// Get only the speech portions of this segment
   List<Float32List> getSpeechOnlyAudio() {
     final speechAudio = <Float32List>[];
-    
+
     for (final region in speechRegions) {
-      final startSample = (region.startTime.inMilliseconds * sampleRate / 1000).round();
-      final endSample = (region.endTime.inMilliseconds * sampleRate / 1000).round();
-      
+      final startSample =
+          (region.startTime.inMilliseconds * sampleRate / 1000).round();
+      final endSample =
+          (region.endTime.inMilliseconds * sampleRate / 1000).round();
+
       if (startSample < audioData.length && endSample <= audioData.length) {
         final regionAudio = audioData.sublist(startSample, endSample);
         speechAudio.add(Float32List.fromList(regionAudio));
       }
     }
-    
+
     return speechAudio;
   }
 
@@ -431,24 +443,25 @@ class AudioQualityMetrics {
   /// Overall quality score (0.0 to 1.0)
   double get qualityScore {
     double score = 0.0;
-    
+
     // SNR contribution (0-40 dB mapped to 0-0.4)
     score += (signalToNoiseRatio.clamp(0, 40) / 40) * 0.4;
-    
+
     // Volume contribution (optimal range -20 to -6 dB)
-    final volumeDb = 20 * (averageVolume > 0 ? math.log(averageVolume) / math.ln10 : -60);
+    final volumeDb =
+        20 * (averageVolume > 0 ? math.log(averageVolume) / math.ln10 : -60);
     if (volumeDb >= -20 && volumeDb <= -6) {
       score += 0.3;
     } else {
       score += 0.3 * (1 - ((volumeDb + 13).abs() / 13).clamp(0, 1));
     }
-    
+
     // No clipping bonus
     if (!isClipping) score += 0.2;
-    
+
     // Not silent bonus
     if (!isSilent) score += 0.1;
-    
+
     return score.clamp(0.0, 1.0);
   }
 }
@@ -493,9 +506,12 @@ class AudioAnalyzer {
     final fundamentalFreq = await _estimateFundamentalFrequency(audio);
     final spectralFeatures = await _extractSpectralFeatures(audio);
     final hasSpeech = avgVolume > 0.01; // Simple speech detection
-    
+
     final quality = _calculateOverallQuality(
-      avgVolume, peakVolume, noiseLevel, fundamentalFreq,
+      avgVolume,
+      peakVolume,
+      noiseLevel,
+      fundamentalFreq,
     );
 
     return AudioAnalysisResult(
@@ -510,20 +526,20 @@ class AudioAnalyzer {
   }
 
   Future<List<SpeechRegion>> detectSpeechRegions(
-    Float32List audio, 
+    Float32List audio,
     double threshold,
   ) async {
     final regions = <SpeechRegion>[];
     const windowSize = 1600; // 100ms at 16kHz
     const stepSize = 800; // 50ms step
-    
+
     bool inSpeech = false;
     int speechStart = 0;
-    
+
     for (int i = 0; i < audio.length - windowSize; i += stepSize) {
       final window = audio.sublist(i, i + windowSize);
       final energy = _calculateAverageVolume(window);
-      
+
       if (!inSpeech && energy > threshold) {
         // Speech started
         inSpeech = true;
@@ -532,10 +548,11 @@ class AudioAnalyzer {
         // Speech ended
         inSpeech = false;
         final speechEnd = i;
-        
+
         if (speechEnd > speechStart) {
           regions.add(SpeechRegion(
-            startTime: Duration(milliseconds: (speechStart * 1000 / 16000).round()),
+            startTime:
+                Duration(milliseconds: (speechStart * 1000 / 16000).round()),
             endTime: Duration(milliseconds: (speechEnd * 1000 / 16000).round()),
             confidence: 0.8, // Simplified confidence
             averageVolume: energy,
@@ -543,7 +560,7 @@ class AudioAnalyzer {
         }
       }
     }
-    
+
     // Handle case where speech continues to the end
     if (inSpeech) {
       regions.add(SpeechRegion(
@@ -553,7 +570,7 @@ class AudioAnalyzer {
         averageVolume: threshold,
       ));
     }
-    
+
     return regions;
   }
 
@@ -561,26 +578,26 @@ class AudioAnalyzer {
     // Simple noise reduction using spectral subtraction
     // In production, this would use more sophisticated algorithms
     final reduced = Float32List.fromList(audio);
-    
+
     for (int i = 0; i < reduced.length; i++) {
       reduced[i] = reduced[i] * (1.0 - level * 0.5);
     }
-    
+
     return reduced;
   }
 
   Float32List normalizeAudio(Float32List audio) {
     final peak = _calculatePeakVolume(audio);
     if (peak == 0) return audio;
-    
+
     final targetPeak = 0.8;
     final gain = targetPeak / peak;
-    
+
     final normalized = Float32List(audio.length);
     for (int i = 0; i < audio.length; i++) {
       normalized[i] = (audio[i] * gain).clamp(-1.0, 1.0);
     }
-    
+
     return normalized;
   }
 
@@ -596,14 +613,14 @@ class AudioAnalyzer {
 
   AudioVisualizerData calculateVisualizerData(Float32List audio) {
     final volume = _calculateAverageVolume(audio);
-    
+
     // Calculate frequency bins for visualization
     final bins = List<double>.filled(32, 0.0);
     // Simplified frequency analysis
     for (int i = 0; i < bins.length; i++) {
       bins[i] = volume * (0.5 + 0.5 * math.sin(i * 0.2));
     }
-    
+
     return AudioVisualizerData(
       level: volume,
       spectrum: bins,
@@ -618,7 +635,7 @@ class AudioAnalyzer {
     final peakVolume = _calculatePeakVolume(audio);
     final snr = _calculateSNR(audio);
     final zcr = _calculateZeroCrossingRate(audio);
-    
+
     return AudioQualityMetrics(
       signalToNoiseRatio: snr,
       averageVolume: avgVolume,
@@ -635,7 +652,7 @@ class AudioAnalyzer {
 
   double _calculateAverageVolume(Float32List audio) {
     if (audio.isEmpty) return 0.0;
-    
+
     double sum = 0.0;
     for (final sample in audio) {
       sum += sample.abs();
@@ -645,7 +662,7 @@ class AudioAnalyzer {
 
   double _calculatePeakVolume(Float32List audio) {
     if (audio.isEmpty) return 0.0;
-    
+
     double peak = 0.0;
     for (final sample in audio) {
       peak = math.max(peak, sample.abs());
@@ -679,43 +696,43 @@ class AudioAnalyzer {
     double fundamentalFreq,
   ) {
     double quality = 0.0;
-    
+
     // Volume quality (optimal range)
     if (avgVolume > 0.1 && avgVolume < 0.8) {
       quality += 0.3;
     }
-    
+
     // Dynamic range quality
     if (peakVolume / avgVolume > 2.0 && peakVolume / avgVolume < 10.0) {
       quality += 0.3;
     }
-    
+
     // Noise quality
     if (avgVolume / noiseLevel > 10.0) {
       quality += 0.4;
     }
-    
+
     return quality.clamp(0.0, 1.0);
   }
 
   double _calculateSNR(Float32List audio) {
     final signal = _calculateAverageVolume(audio);
     final noise = _estimateNoiseLevel(audio);
-    
+
     if (noise == 0) return 60.0; // Maximum SNR
     return 20 * math.log(signal / noise) / math.ln10;
   }
 
   double _calculateZeroCrossingRate(Float32List audio) {
     if (audio.length < 2) return 0.0;
-    
+
     int crossings = 0;
     for (int i = 1; i < audio.length; i++) {
       if ((audio[i] >= 0) != (audio[i - 1] >= 0)) {
         crossings++;
       }
     }
-    
+
     return crossings / audio.length;
   }
 

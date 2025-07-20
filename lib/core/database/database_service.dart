@@ -130,19 +130,26 @@ class DatabaseService {
       ''');
 
       // Create indexes for better query performance
-      await txn.execute('CREATE INDEX idx_sessions_start_time ON meeting_sessions (start_time)');
-      await txn.execute('CREATE INDEX idx_segments_session_id ON summary_segments (session_id)');
-      await txn.execute('CREATE INDEX idx_segments_start_time ON summary_segments (start_time_ms)');
-      await txn.execute('CREATE INDEX idx_comments_session_id ON comments (session_id)');
-      await txn.execute('CREATE INDEX idx_comments_segment_id ON comments (segment_id)');
-      await txn.execute('CREATE INDEX idx_audio_segments_session_id ON audio_segments (session_id)');
+      await txn.execute(
+          'CREATE INDEX idx_sessions_start_time ON meeting_sessions (start_time)');
+      await txn.execute(
+          'CREATE INDEX idx_segments_session_id ON summary_segments (session_id)');
+      await txn.execute(
+          'CREATE INDEX idx_segments_start_time ON summary_segments (start_time_ms)');
+      await txn.execute(
+          'CREATE INDEX idx_comments_session_id ON comments (session_id)');
+      await txn.execute(
+          'CREATE INDEX idx_comments_segment_id ON comments (segment_id)');
+      await txn.execute(
+          'CREATE INDEX idx_audio_segments_session_id ON audio_segments (session_id)');
 
       debugPrint('Database schema created successfully');
     });
   }
 
   /// Upgrade database schema for future versions
-  Future<void> _upgradeDatabase(Database db, int oldVersion, int newVersion) async {
+  Future<void> _upgradeDatabase(
+      Database db, int oldVersion, int newVersion) async {
     // Handle database migrations here
     debugPrint('Upgrading database from version $oldVersion to $newVersion');
   }
@@ -152,7 +159,7 @@ class DatabaseService {
   /// Save a meeting session to the database
   Future<String> saveMeetingSession(MeetingSession session) async {
     final db = await database;
-    
+
     try {
       await db.transaction((txn) async {
         // Insert or update meeting session
@@ -163,8 +170,10 @@ class DatabaseService {
         );
 
         // Delete existing segments and comments for this session
-        await txn.delete('summary_segments', where: 'session_id = ?', whereArgs: [session.id]);
-        await txn.delete('comments', where: 'session_id = ?', whereArgs: [session.id]);
+        await txn.delete('summary_segments',
+            where: 'session_id = ?', whereArgs: [session.id]);
+        await txn.delete('comments',
+            where: 'session_id = ?', whereArgs: [session.id]);
 
         // Save summary segments
         for (final segment in session.segments) {
@@ -196,7 +205,7 @@ class DatabaseService {
   /// Load a meeting session by ID
   Future<MeetingSession?> loadMeetingSession(String sessionId) async {
     final db = await database;
-    
+
     try {
       // Load session data
       final sessionMaps = await db.query(
@@ -228,7 +237,7 @@ class DatabaseService {
     DateTime? endDate,
   }) async {
     final db = await database;
-    
+
     try {
       String whereClause = '';
       List<dynamic> whereArgs = [];
@@ -273,7 +282,7 @@ class DatabaseService {
   /// Delete a meeting session and all related data
   Future<bool> deleteMeetingSession(String sessionId) async {
     final db = await database;
-    
+
     try {
       final deletedRows = await db.delete(
         'meeting_sessions',
@@ -294,7 +303,7 @@ class DatabaseService {
   /// Add a comment to a session or segment
   Future<String> addComment(Comment comment, String sessionId) async {
     final db = await database;
-    
+
     try {
       await db.insert(
         'comments',
@@ -313,7 +322,7 @@ class DatabaseService {
   /// Update an existing comment
   Future<bool> updateComment(Comment comment, String sessionId) async {
     final db = await database;
-    
+
     try {
       final updatedRows = await db.update(
         'comments',
@@ -333,7 +342,7 @@ class DatabaseService {
   /// Delete a comment
   Future<bool> deleteComment(String commentId) async {
     final db = await database;
-    
+
     try {
       final deletedRows = await db.delete(
         'comments',
@@ -352,9 +361,10 @@ class DatabaseService {
   // Audio Segment Operations
 
   /// Save audio segment metadata
-  Future<void> saveAudioSegment(AudioSegment audioSegment, String sessionId) async {
+  Future<void> saveAudioSegment(
+      AudioSegment audioSegment, String sessionId) async {
     final db = await database;
-    
+
     try {
       await db.insert(
         'audio_segments',
@@ -374,7 +384,7 @@ class DatabaseService {
   /// Get a setting value
   Future<String?> getSetting(String key) async {
     final db = await database;
-    
+
     try {
       final result = await db.query(
         'settings',
@@ -393,7 +403,7 @@ class DatabaseService {
   /// Set a setting value
   Future<void> setSetting(String key, String value) async {
     final db = await database;
-    
+
     try {
       await db.insert(
         'settings',
@@ -417,19 +427,22 @@ class DatabaseService {
   /// Get database statistics
   Future<Map<String, dynamic>> getDatabaseStats() async {
     final db = await database;
-    
+
     try {
       final sessionCount = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM meeting_sessions'),
-      ) ?? 0;
+            await db.rawQuery('SELECT COUNT(*) FROM meeting_sessions'),
+          ) ??
+          0;
 
       final segmentCount = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM summary_segments'),
-      ) ?? 0;
+            await db.rawQuery('SELECT COUNT(*) FROM summary_segments'),
+          ) ??
+          0;
 
       final commentCount = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM comments'),
-      ) ?? 0;
+            await db.rawQuery('SELECT COUNT(*) FROM comments'),
+          ) ??
+          0;
 
       final dbSize = await _getDatabaseSize();
 
@@ -448,7 +461,7 @@ class DatabaseService {
   /// Clean up old data beyond retention policy
   Future<void> cleanupOldData({int retentionDays = 90}) async {
     final db = await database;
-    
+
     try {
       final cutoffDate = DateTime.now().subtract(Duration(days: retentionDays));
       final cutoffTimestamp = cutoffDate.millisecondsSinceEpoch;
@@ -459,7 +472,8 @@ class DatabaseService {
         whereArgs: [cutoffTimestamp],
       );
 
-      debugPrint('Cleanup completed: removed sessions older than $retentionDays days');
+      debugPrint(
+          'Cleanup completed: removed sessions older than $retentionDays days');
     } catch (e) {
       debugPrint('Failed to cleanup old data: $e');
     }
@@ -480,7 +494,7 @@ class DatabaseService {
       final documentsDirectory = await getApplicationDocumentsDirectory();
       final databasePath = path.join(documentsDirectory.path, _databaseName);
       final file = File(databasePath);
-      
+
       if (await file.exists()) {
         final sizeBytes = await file.length();
         return sizeBytes / (1024 * 1024); // Convert to MB
@@ -491,7 +505,8 @@ class DatabaseService {
     return 0.0;
   }
 
-  Future<List<SummarySegment>> _loadSegmentsForSession(Database db, String sessionId) async {
+  Future<List<SummarySegment>> _loadSegmentsForSession(
+      Database db, String sessionId) async {
     final segmentMaps = await db.query(
       'summary_segments',
       where: 'session_id = ?',
@@ -502,7 +517,8 @@ class DatabaseService {
     return segmentMaps.map((map) => _mapToSegment(map)).toList();
   }
 
-  Future<List<Comment>> _loadCommentsForSession(Database db, String sessionId) async {
+  Future<List<Comment>> _loadCommentsForSession(
+      Database db, String sessionId) async {
     final commentMaps = await db.query(
       'comments',
       where: 'session_id = ?',
@@ -535,8 +551,10 @@ class DatabaseService {
       'end_time_ms': segment.endTime.inMilliseconds,
       'topic': segment.topic,
       'key_points': jsonEncode(segment.keyPoints),
-      'action_items': jsonEncode(segment.actionItems.map((item) => item.toJson()).toList()),
-      'speakers': jsonEncode(segment.speakers.map((speaker) => speaker.toJson()).toList()),
+      'action_items':
+          jsonEncode(segment.actionItems.map((item) => item.toJson()).toList()),
+      'speakers': jsonEncode(
+          segment.speakers.map((speaker) => speaker.toJson()).toList()),
       'languages': jsonEncode(segment.languages),
       'created_at': DateTime.now().millisecondsSinceEpoch,
     };
@@ -554,7 +572,8 @@ class DatabaseService {
     };
   }
 
-  Map<String, dynamic> _audioSegmentToMap(AudioSegment audioSegment, String sessionId) {
+  Map<String, dynamic> _audioSegmentToMap(
+      AudioSegment audioSegment, String sessionId) {
     return {
       'id': audioSegment.id,
       'session_id': sessionId,
@@ -564,12 +583,14 @@ class DatabaseService {
       'sample_rate': audioSegment.sampleRate,
       'channels': audioSegment.channels,
       'quality_score': audioSegment.qualityScore,
-      'speech_regions': jsonEncode(audioSegment.speechRegions.map((region) => {
-        'startTime': region.startTime.inMilliseconds,
-        'endTime': region.endTime.inMilliseconds,
-        'confidence': region.confidence,
-        'averageVolume': region.averageVolume,
-      }).toList()),
+      'speech_regions': jsonEncode(audioSegment.speechRegions
+          .map((region) => {
+                'startTime': region.startTime.inMilliseconds,
+                'endTime': region.endTime.inMilliseconds,
+                'confidence': region.confidence,
+                'averageVolume': region.averageVolume,
+              })
+          .toList()),
       'analysis_data': jsonEncode({
         'averageVolume': audioSegment.audioAnalysis.averageVolume,
         'peakVolume': audioSegment.audioAnalysis.peakVolume,
@@ -591,8 +612,9 @@ class DatabaseService {
     return MeetingSession(
       id: sessionMap['id'] as String,
       title: sessionMap['title'] as String,
-      startTime: DateTime.fromMillisecondsSinceEpoch(sessionMap['start_time'] as int),
-      endTime: sessionMap['end_time'] != null 
+      startTime:
+          DateTime.fromMillisecondsSinceEpoch(sessionMap['start_time'] as int),
+      endTime: sessionMap['end_time'] != null
           ? DateTime.fromMillisecondsSinceEpoch(sessionMap['end_time'] as int)
           : null,
       segments: segments,
@@ -603,10 +625,13 @@ class DatabaseService {
   }
 
   SummarySegment _mapToSegment(Map<String, dynamic> map) {
-    final keyPointsList = jsonDecode(map['key_points'] as String) as List<dynamic>;
-    final actionItemsList = jsonDecode(map['action_items'] as String) as List<dynamic>;
+    final keyPointsList =
+        jsonDecode(map['key_points'] as String) as List<dynamic>;
+    final actionItemsList =
+        jsonDecode(map['action_items'] as String) as List<dynamic>;
     final speakersList = jsonDecode(map['speakers'] as String) as List<dynamic>;
-    final languagesList = jsonDecode(map['languages'] as String) as List<dynamic>;
+    final languagesList =
+        jsonDecode(map['languages'] as String) as List<dynamic>;
 
     return SummarySegment(
       id: map['id'] as String,
@@ -614,8 +639,10 @@ class DatabaseService {
       endTime: Duration(milliseconds: map['end_time_ms'] as int),
       topic: map['topic'] as String,
       keyPoints: keyPointsList.cast<String>(),
-      actionItems: actionItemsList.map((item) => ActionItem.fromJson(item)).toList(),
-      speakers: speakersList.map((speaker) => Speaker.fromJson(speaker)).toList(),
+      actionItems:
+          actionItemsList.map((item) => ActionItem.fromJson(item)).toList(),
+      speakers:
+          speakersList.map((speaker) => Speaker.fromJson(speaker)).toList(),
       languages: languagesList.cast<String>(),
     );
   }

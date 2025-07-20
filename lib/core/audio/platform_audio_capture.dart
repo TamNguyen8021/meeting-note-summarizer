@@ -10,12 +10,17 @@ import '../audio/audio_source.dart';
 /// Platform-specific audio capture using method channels
 /// Handles native system audio recording on Windows/macOS/Linux
 class PlatformAudioCapture implements AudioCaptureInterface {
-  static const MethodChannel _methodChannel = MethodChannel('meeting_note_summarizer/audio_capture');
-  static const EventChannel _audioEventChannel = EventChannel('meeting_note_summarizer/audio_stream');
+  static const MethodChannel _methodChannel =
+      MethodChannel('meeting_note_summarizer/audio_capture');
+  static const EventChannel _audioEventChannel =
+      EventChannel('meeting_note_summarizer/audio_stream');
 
-  final StreamController<AudioChunk> _audioController = StreamController<AudioChunk>.broadcast();
-  final StreamController<List<AudioSource>> _sourcesController = StreamController<List<AudioSource>>.broadcast();
-  final StreamController<double> _levelController = StreamController<double>.broadcast();
+  final StreamController<AudioChunk> _audioController =
+      StreamController<AudioChunk>.broadcast();
+  final StreamController<List<AudioSource>> _sourcesController =
+      StreamController<List<AudioSource>>.broadcast();
+  final StreamController<double> _levelController =
+      StreamController<double>.broadcast();
 
   StreamSubscription<dynamic>? _audioSubscription;
   bool _isCapturing = false;
@@ -32,7 +37,8 @@ class PlatformAudioCapture implements AudioCaptureInterface {
   Stream<AudioChunk> get audioStream => _audioController.stream;
 
   @override
-  Stream<List<AudioSource>> get availableSourcesStream => _sourcesController.stream;
+  Stream<List<AudioSource>> get availableSourcesStream =>
+      _sourcesController.stream;
 
   @override
   Stream<double> get audioLevelStream => _levelController.stream;
@@ -48,11 +54,11 @@ class PlatformAudioCapture implements AudioCaptureInterface {
 
   /// Get current audio configuration
   Map<String, dynamic> get audioConfig => {
-    'sampleRate': sampleRate,
-    'channels': channels,
-    'bitDepth': bitDepth,
-    'bufferSizeMs': bufferSizeMs,
-  };
+        'sampleRate': sampleRate,
+        'channels': channels,
+        'bitDepth': bitDepth,
+        'bufferSizeMs': bufferSizeMs,
+      };
 
   /// Initialize platform audio capture
   @override
@@ -71,7 +77,8 @@ class PlatformAudioCapture implements AudioCaptureInterface {
         'bufferSizeMs': bufferSizeMs,
       };
 
-      final result = await _methodChannel.invokeMethod<bool>('initialize', config);
+      final result =
+          await _methodChannel.invokeMethod<bool>('initialize', config);
       if (result != true) {
         _handleError('Failed to initialize native audio capture');
         return false;
@@ -79,28 +86,29 @@ class PlatformAudioCapture implements AudioCaptureInterface {
 
       _isInitialized = true;
       debugPrint('Platform audio capture initialized successfully');
-      
+
       // Load available sources
       await _loadAvailableSources();
-      
+
       return true;
     } catch (e) {
       debugPrint('Platform audio capture initialization error: $e');
-      
+
       // Fallback: Initialize with mock implementation
       _isInitialized = true;
       debugPrint('Using fallback audio capture implementation');
-      
+
       // Load fallback sources
       final fallbackSources = _getFallbackAudioSources();
       _sourcesController.add(fallbackSources);
-      
+
       // Auto-select the first available source
       if (fallbackSources.isNotEmpty) {
         _currentSource = fallbackSources.first;
-        debugPrint('Auto-selected fallback audio source: ${_currentSource!.name}');
+        debugPrint(
+            'Auto-selected fallback audio source: ${_currentSource!.name}');
       }
-      
+
       return true;
     }
   }
@@ -110,9 +118,10 @@ class PlatformAudioCapture implements AudioCaptureInterface {
     if (!_isInitialized) return [];
 
     try {
-      final result = await _methodChannel.invokeMethod<List<dynamic>>('getAudioSources');
+      final result =
+          await _methodChannel.invokeMethod<List<dynamic>>('getAudioSources');
       final sources = <AudioSource>[];
-      
+
       if (result != null) {
         for (final sourceData in result) {
           if (sourceData is Map<String, dynamic>) {
@@ -160,16 +169,17 @@ class PlatformAudioCapture implements AudioCaptureInterface {
     if (!_isInitialized) return false;
 
     try {
-      final result = await _methodChannel.invokeMethod<bool>('selectAudioSource', {
+      final result =
+          await _methodChannel.invokeMethod<bool>('selectAudioSource', {
         'sourceId': source.id,
       });
-      
+
       if (result == true) {
         _currentSource = source;
         debugPrint('Selected audio source: ${source.name}');
         return true;
       }
-      
+
       return false;
     } catch (e) {
       debugPrint('Platform method selectAudioSource failed: $e');
@@ -195,9 +205,9 @@ class PlatformAudioCapture implements AudioCaptureInterface {
     try {
       // Start listening to audio stream
       _audioSubscription = _audioEventChannel.receiveBroadcastStream().listen(
-        _handleAudioData,
-        onError: _handleStreamError,
-      );
+            _handleAudioData,
+            onError: _handleStreamError,
+          );
 
       // Start native audio capture
       final result = await _methodChannel.invokeMethod<bool>('startCapture');
@@ -269,7 +279,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
   Future<void> _loadAvailableSources() async {
     final sources = await getAvailableSources();
     _sourcesController.add(sources);
-    
+
     // Auto-select first available source if none selected
     if (_currentSource == null && sources.isNotEmpty) {
       final availableSource = sources.firstWhere(
@@ -303,22 +313,23 @@ class PlatformAudioCapture implements AudioCaptureInterface {
         final double level = call.arguments['level']?.toDouble() ?? 0.0;
         _levelController.add(level);
         break;
-      
+
       case 'onAudioDeviceChanged':
         final String deviceName = call.arguments['deviceName'] ?? 'Unknown';
         debugPrint('Audio device changed: $deviceName');
         await _loadAvailableSources();
         break;
-      
+
       case 'onPermissionDenied':
         debugPrint('Microphone permission denied');
         break;
-      
+
       case 'onError':
-        final String message = call.arguments['message'] ?? 'Unknown native error';
+        final String message =
+            call.arguments['message'] ?? 'Unknown native error';
         _handleError('Native audio error: $message');
         break;
-      
+
       default:
         debugPrint('Unhandled method call: ${call.method}');
     }
@@ -330,13 +341,18 @@ class PlatformAudioCapture implements AudioCaptureInterface {
       if (data is Map<String, dynamic>) {
         // Extract audio data
         final List<int>? rawData = data['audioData']?.cast<int>();
-        final int timestamp = data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
+        final int timestamp =
+            data['timestamp'] ?? DateTime.now().millisecondsSinceEpoch;
         final double volume = data['volume']?.toDouble() ?? 0.0;
 
         if (rawData != null && rawData.isNotEmpty) {
           // Convert to Uint8List for AudioChunk
           final audioBytes = Uint8List.fromList(rawData);
-          final duration = Duration(milliseconds: (audioBytes.length / (sampleRate * channels * (bitDepth ~/ 8)) * 1000).round());
+          final duration = Duration(
+              milliseconds: (audioBytes.length /
+                      (sampleRate * channels * (bitDepth ~/ 8)) *
+                      1000)
+                  .round());
 
           // Create audio chunk
           final chunk = AudioChunk(
@@ -354,9 +370,12 @@ class PlatformAudioCapture implements AudioCaptureInterface {
         }
       } else if (data is Uint8List) {
         // Handle raw byte data
-        final duration = Duration(milliseconds: (data.length / (sampleRate * channels * (bitDepth ~/ 8)) * 1000).round());
+        final duration = Duration(
+            milliseconds:
+                (data.length / (sampleRate * channels * (bitDepth ~/ 8)) * 1000)
+                    .round());
         final volume = _calculateVolumeFromBytes(data);
-        
+
         final chunk = AudioChunk(
           data: data,
           timestamp: DateTime.now(),
@@ -388,24 +407,25 @@ class PlatformAudioCapture implements AudioCaptureInterface {
   /// Calculate RMS volume from byte data
   double _calculateVolumeFromBytes(Uint8List bytes) {
     if (bytes.length < 2) return 0.0;
-    
+
     double sum = 0.0;
     final sampleCount = bytes.length ~/ 2;
-    
+
     for (int i = 0; i < sampleCount; i++) {
       // Read 16-bit little-endian sample
       final sample = (bytes[i * 2 + 1] << 8) | bytes[i * 2];
       final normalizedSample = (sample - 32768) / 32768.0;
       sum += normalizedSample * normalizedSample;
     }
-    
+
     return (sum / sampleCount).clamp(0.0, 1.0);
   }
 
   /// Get available audio input devices
   Future<List<Map<String, dynamic>>> getAudioDevices() async {
     try {
-      final result = await _methodChannel.invokeMethod<List<dynamic>>('getAudioDevices');
+      final result =
+          await _methodChannel.invokeMethod<List<dynamic>>('getAudioDevices');
       return result?.cast<Map<String, dynamic>>() ?? [];
     } catch (e) {
       debugPrint('Failed to get audio devices: $e');
@@ -416,7 +436,8 @@ class PlatformAudioCapture implements AudioCaptureInterface {
   /// Set the active audio input device
   Future<bool> setAudioDevice(String deviceId) async {
     try {
-      final result = await _methodChannel.invokeMethod<bool>('setAudioDevice', {'deviceId': deviceId});
+      final result = await _methodChannel
+          .invokeMethod<bool>('setAudioDevice', {'deviceId': deviceId});
       return result ?? false;
     } catch (e) {
       debugPrint('Failed to set audio device: $e');
@@ -427,7 +448,8 @@ class PlatformAudioCapture implements AudioCaptureInterface {
   /// Get current audio levels (useful for UI)
   Future<Map<String, double>> getAudioLevels() async {
     try {
-      final result = await _methodChannel.invokeMethod<Map<String, dynamic>>('getAudioLevels');
+      final result = await _methodChannel
+          .invokeMethod<Map<String, dynamic>>('getAudioLevels');
       return {
         'inputLevel': result?['inputLevel']?.toDouble() ?? 0.0,
         'outputLevel': result?['outputLevel']?.toDouble() ?? 0.0,
@@ -441,7 +463,8 @@ class PlatformAudioCapture implements AudioCaptureInterface {
   /// Request microphone permission (mainly for mobile platforms)
   Future<bool> requestPermission() async {
     try {
-      final result = await _methodChannel.invokeMethod<bool>('requestPermission');
+      final result =
+          await _methodChannel.invokeMethod<bool>('requestPermission');
       return result ?? false;
     } catch (e) {
       debugPrint('Failed to request permission: $e');
@@ -479,7 +502,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
     await _audioController.close();
     await _sourcesController.close();
     await _levelController.close();
-    
+
     _isInitialized = false;
     debugPrint('Platform audio capture disposed');
   }
@@ -510,10 +533,12 @@ class PlatformAudioCapture implements AudioCaptureInterface {
 
       // Convert Int16List to Uint8List for AudioChunk
       final audioBytes = Uint8List.fromList(
-        audioData.expand((sample) => [
-          sample & 0xFF,        // Low byte
-          (sample >> 8) & 0xFF, // High byte
-        ]).toList(),
+        audioData
+            .expand((sample) => [
+                  sample & 0xFF, // Low byte
+                  (sample >> 8) & 0xFF, // High byte
+                ])
+            .toList(),
       );
 
       final chunk = AudioChunk(
@@ -527,7 +552,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
       );
 
       _audioController.add(chunk);
-      
+
       // Also emit a low audio level
       _levelController.add(0.05); // 5% level
     });

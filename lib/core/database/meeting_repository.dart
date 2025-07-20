@@ -17,19 +17,19 @@ abstract class MeetingRepository {
     DateTime? endDate,
   });
   Future<bool> deleteMeetingSession(String sessionId);
-  
+
   // Comment operations
   Future<String> addComment(Comment comment, String sessionId);
   Future<bool> updateComment(Comment comment, String sessionId);
   Future<bool> deleteComment(String commentId);
-  
+
   // Audio segment operations
   Future<void> saveAudioSegment(AudioSegment audioSegment, String sessionId);
-  
+
   // Settings operations
   Future<String?> getSetting(String key);
   Future<void> setSetting(String key, String value);
-  
+
   // Maintenance operations
   Future<Map<String, dynamic>> getDatabaseStats();
   Future<void> cleanupOldData({int retentionDays = 90});
@@ -38,7 +38,7 @@ abstract class MeetingRepository {
 /// Implementation of MeetingRepository using SQLite database
 class SQLiteMeetingRepository implements MeetingRepository {
   final DatabaseService _databaseService;
-  
+
   SQLiteMeetingRepository({DatabaseService? databaseService})
       : _databaseService = databaseService ?? DatabaseService();
 
@@ -123,7 +123,8 @@ class SQLiteMeetingRepository implements MeetingRepository {
   }
 
   @override
-  Future<void> saveAudioSegment(AudioSegment audioSegment, String sessionId) async {
+  Future<void> saveAudioSegment(
+      AudioSegment audioSegment, String sessionId) async {
     try {
       await _databaseService.saveAudioSegment(audioSegment, sessionId);
     } catch (e) {
@@ -198,18 +199,26 @@ class InMemoryMeetingRepository implements MeetingRepository {
     DateTime? endDate,
   }) async {
     var sessions = _sessions.values.toList();
-    
+
     // Filter by date range
     if (startDate != null) {
-      sessions = sessions.where((s) => s.startTime.isAfter(startDate) || s.startTime.isAtSameMomentAs(startDate)).toList();
+      sessions = sessions
+          .where((s) =>
+              s.startTime.isAfter(startDate) ||
+              s.startTime.isAtSameMomentAs(startDate))
+          .toList();
     }
     if (endDate != null) {
-      sessions = sessions.where((s) => s.startTime.isBefore(endDate) || s.startTime.isAtSameMomentAs(endDate)).toList();
+      sessions = sessions
+          .where((s) =>
+              s.startTime.isBefore(endDate) ||
+              s.startTime.isAtSameMomentAs(endDate))
+          .toList();
     }
-    
+
     // Sort by start time (newest first)
     sessions.sort((a, b) => b.startTime.compareTo(a.startTime));
-    
+
     // Apply pagination
     if (offset != null) {
       sessions = sessions.skip(offset).toList();
@@ -217,19 +226,21 @@ class InMemoryMeetingRepository implements MeetingRepository {
     if (limit != null) {
       sessions = sessions.take(limit).toList();
     }
-    
+
     return sessions;
   }
 
   @override
   Future<bool> deleteMeetingSession(String sessionId) async {
     final removed = _sessions.remove(sessionId);
-    
+
     // Remove related comments and audio segments
-    _comments.removeWhere((key, comment) => comment.segmentId != null && 
-        _sessions[sessionId]?.segments.any((s) => s.id == comment.segmentId) == true);
+    _comments.removeWhere((key, comment) =>
+        comment.segmentId != null &&
+        _sessions[sessionId]?.segments.any((s) => s.id == comment.segmentId) ==
+            true);
     _audioSegments.removeWhere((key, segment) => key.startsWith(sessionId));
-    
+
     return removed != null;
   }
 
@@ -254,7 +265,8 @@ class InMemoryMeetingRepository implements MeetingRepository {
   }
 
   @override
-  Future<void> saveAudioSegment(AudioSegment audioSegment, String sessionId) async {
+  Future<void> saveAudioSegment(
+      AudioSegment audioSegment, String sessionId) async {
     _audioSegments['${sessionId}_${audioSegment.id}'] = audioSegment;
   }
 
@@ -272,7 +284,8 @@ class InMemoryMeetingRepository implements MeetingRepository {
   Future<Map<String, dynamic>> getDatabaseStats() async {
     return {
       'sessionCount': _sessions.length,
-      'segmentCount': _sessions.values.fold<int>(0, (sum, session) => sum + session.segments.length),
+      'segmentCount': _sessions.values
+          .fold<int>(0, (sum, session) => sum + session.segments.length),
       'commentCount': _comments.length,
       'databaseSizeMB': 0.0, // Not applicable for in-memory
     };
@@ -281,17 +294,21 @@ class InMemoryMeetingRepository implements MeetingRepository {
   @override
   Future<void> cleanupOldData({int retentionDays = 90}) async {
     final cutoffDate = DateTime.now().subtract(Duration(days: retentionDays));
-    
-    _sessions.removeWhere((key, session) => session.startTime.isBefore(cutoffDate));
-    
+
+    _sessions
+        .removeWhere((key, session) => session.startTime.isBefore(cutoffDate));
+
     // Clean up orphaned data
     final sessionIds = _sessions.keys.toSet();
-    _comments.removeWhere((key, comment) => 
-        comment.segmentId != null && 
-        !sessionIds.any((sessionId) => 
-            _sessions[sessionId]?.segments.any((s) => s.id == comment.segmentId) == true));
-    
-    _audioSegments.removeWhere((key, segment) => 
+    _comments.removeWhere((key, comment) =>
+        comment.segmentId != null &&
+        !sessionIds.any((sessionId) =>
+            _sessions[sessionId]
+                ?.segments
+                .any((s) => s.id == comment.segmentId) ==
+            true));
+
+    _audioSegments.removeWhere((key, segment) =>
         !sessionIds.any((sessionId) => key.startsWith(sessionId)));
   }
 
