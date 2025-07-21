@@ -148,9 +148,30 @@ class _ModelManagementScreenState extends State<ModelManagementScreen>
 
   /// Individual model card
   Widget _buildModelCard(ModelInfo model, ModelManager modelManager) {
-    final isDownloaded = model.isDownloaded;
     final downloadState = modelManager.downloadStates[model.id];
     final isDownloading = downloadState?.isDownloading ?? false;
+    final hasDownloadState = downloadState != null;
+
+    // A model should only be considered downloaded if:
+    // 1. It's marked as downloaded AND
+    // 2. It's not currently downloading AND
+    // 3. There's no active download state OR the download state is completed
+    // 4. If there's a download state, progress must be 1.0 and completed must be true
+    final isActuallyDownloaded = model.isDownloaded &&
+        !isDownloading &&
+        (!hasDownloadState ||
+            (downloadState.isCompleted && downloadState.progress >= 1.0));
+
+    // Debug logging to help diagnose the issue
+    if (model.id == 'whisper-tiny') {
+      debugPrint('=== Whisper Tiny Status Debug ===');
+      debugPrint('  model.isDownloaded: ${model.isDownloaded}');
+      debugPrint('  isDownloading: $isDownloading');
+      debugPrint('  hasDownloadState: $hasDownloadState');
+      debugPrint('  downloadState: ${downloadState?.toString()}');
+      debugPrint('  isActuallyDownloaded: $isActuallyDownloaded');
+      debugPrint('================================');
+    }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -169,7 +190,7 @@ class _ModelManagementScreenState extends State<ModelManagementScreen>
           ],
         ),
         trailing: _buildModelActions(
-            model, modelManager, isDownloaded, isDownloading),
+            model, modelManager, isActuallyDownloaded, isDownloading),
         children: [
           _buildModelDetails(model),
         ],
@@ -234,10 +255,24 @@ class _ModelManagementScreenState extends State<ModelManagementScreen>
 
   /// Model action buttons
   Widget _buildModelActions(ModelInfo model, ModelManager modelManager,
-      bool isDownloaded, bool isDownloading) {
+      bool isActuallyDownloaded, bool isDownloading) {
     return Consumer<AiCoordinator>(
       builder: (context, aiCoordinator, child) {
-        if (isDownloading) {
+        // Check download state directly to be more reliable
+        final downloadState = modelManager.downloadStates[model.id];
+        final isCurrentlyDownloading = downloadState?.isDownloading ?? false;
+
+        // Debug logging for download actions
+        if (model.id == 'whisper-tiny') {
+          debugPrint('=== Whisper Tiny Actions Debug ===');
+          debugPrint('  downloadState: ${downloadState?.toString()}');
+          debugPrint('  isCurrentlyDownloading: $isCurrentlyDownloading');
+          debugPrint('  isActuallyDownloaded: $isActuallyDownloaded');
+          debugPrint('================================');
+        }
+
+        // Show spinner during entire download process
+        if (isCurrentlyDownloading) {
           return const SizedBox(
             width: 24,
             height: 24,
@@ -245,7 +280,8 @@ class _ModelManagementScreenState extends State<ModelManagementScreen>
           );
         }
 
-        if (isDownloaded) {
+        // Show ACTIVE/Use buttons only when completely downloaded
+        if (isActuallyDownloaded) {
           final isActive = _isModelActive(model, aiCoordinator);
 
           return Row(
