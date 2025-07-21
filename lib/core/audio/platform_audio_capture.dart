@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:math';
 import 'package:record/record.dart';
 
 import 'audio_capture_interface.dart';
@@ -24,6 +23,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
       name: 'Default Microphone',
       type: AudioSourceType.microphone,
     ),
+    // Remove system audio since this implementation can't actually capture it
   ];
 
   // Audio configuration
@@ -61,7 +61,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
 
   @override
   bool get supportsSystemAudio =>
-      false; // Record package doesn't support system audio
+      false; // This implementation only supports microphone via record package
 
   @override
   Map<String, dynamic> get audioConfig => _audioConfig;
@@ -105,17 +105,25 @@ class PlatformAudioCapture implements AudioCaptureInterface {
     if (_isCapturing) return true;
 
     try {
+      // Check permission first
+      if (!await _recorder.hasPermission()) {
+        print('No microphone permission');
+        return false;
+      }
+
+      // For real-time audio capture, we'll use the amplitude stream
       await _recorder.start(
-          RecordConfig(
-            encoder: AudioEncoder.wav,
-            sampleRate: _audioConfig['sampleRate'],
-            bitRate: _audioConfig['bitsPerSample'],
-            numChannels: _audioConfig['channels'],
-          ),
-          path: ''); // Empty path for streaming
+        RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: _audioConfig['sampleRate'],
+          numChannels: _audioConfig['channels'],
+        ),
+        path: 'temp_audio.wav', // Temporary file for recording
+      );
 
       _isCapturing = true;
-      _startChunkTimer();
+      _startAudioLevelMonitoring();
+      print('Audio capture started successfully');
       return true;
     } catch (e) {
       print('Error starting recording: $e');
@@ -123,7 +131,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
     }
   }
 
-  void _startChunkTimer() {
+  void _startAudioLevelMonitoring() {
     final bufferSizeMs = _audioConfig['bufferSizeMs'] as int;
 
     _chunkTimer = Timer.periodic(
@@ -132,7 +140,18 @@ class PlatformAudioCapture implements AudioCaptureInterface {
         if (_isCapturing &&
             _audioStreamController != null &&
             !_audioStreamController!.isClosed) {
-          // Simulate audio data chunk (in real implementation, get from recorder)
+          // Get amplitude level from recorder
+          final amplitude = await _recorder.getAmplitude();
+          double level = 0.0;
+
+          if (amplitude.current > -50.0) {
+            // Convert dB to normalized level (0.0 - 1.0)
+            level = (amplitude.current + 50.0) / 50.0;
+            level = level.clamp(0.0, 1.0);
+          }
+
+          // Create a simple audio chunk for visualization
+          // Note: This is simplified - real audio data would come from streaming
           final sampleRate = _audioConfig['sampleRate'] as int;
           final channels = _audioConfig['channels'] as int;
           final bitsPerSample = _audioConfig['bitsPerSample'] as int;
@@ -141,21 +160,6 @@ class PlatformAudioCapture implements AudioCaptureInterface {
               (sampleRate * channels * (bitsPerSample ~/ 8) * bufferSizeMs) ~/
                   1000;
           final audioData = Uint8List(chunkSize);
-
-          // Generate simulated audio data
-          final random = Random();
-          double level = 0.0;
-
-          for (int i = 0; i < audioData.length; i += 2) {
-            // Simulate some audio with occasional speech-like patterns
-            final sample =
-                (sin(i / 100.0) * 16384 + random.nextDouble() * 1000).toInt();
-            audioData[i] = sample & 0xFF;
-            audioData[i + 1] = (sample >> 8) & 0xFF;
-
-            // Calculate level for this sample
-            level = max(level, sample.abs() / 32767.0);
-          }
 
           final chunk = AudioChunk(
             data: audioData,
