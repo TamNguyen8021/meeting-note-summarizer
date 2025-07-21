@@ -45,7 +45,7 @@ class MobileAudioCapture implements AudioCaptureInterface {
   bool get isCapturing => _isCapturing;
 
   @override
-  bool get supportsSystemAudio => false; // Mobile doesn't support system audio
+  bool get supportsSystemAudio => false; // Revert to working state
 
   @override
   Map<String, dynamic> get audioConfig => {
@@ -85,7 +85,7 @@ class MobileAudioCapture implements AudioCaptureInterface {
 
   @override
   Future<List<AudioSource>> getAvailableSources() async {
-    // Mobile typically only has microphone available
+    // Simplified mobile sources - only microphone for now
     final sources = <AudioSource>[
       const AudioSource(
         id: 'default_microphone',
@@ -95,15 +95,15 @@ class MobileAudioCapture implements AudioCaptureInterface {
       ),
     ];
 
-    // Check for additional input devices if available
+    // Check if microphone is available
     try {
-      final isAvailable = await _recorder.hasPermission();
-      if (isAvailable) {
+      final hasPermission = await _recorder.hasPermission();
+      if (!hasPermission) {
         sources.first = AudioSource(
           id: sources.first.id,
           name: sources.first.name,
           type: sources.first.type,
-          isAvailable: true,
+          isAvailable: false,
         );
       }
     } catch (e) {
@@ -117,7 +117,7 @@ class MobileAudioCapture implements AudioCaptureInterface {
   Future<bool> selectSource(AudioSource source) async {
     if (!_isInitialized) return false;
 
-    // On mobile, we typically only have one source
+    // On mobile, we typically only have microphone
     if (source.type == AudioSourceType.microphone) {
       _currentSource = source;
       return true;
@@ -133,11 +133,12 @@ class MobileAudioCapture implements AudioCaptureInterface {
     }
 
     try {
-      // Configure recording settings
+      // Use standard recording settings
       const config = RecordConfig(
         encoder: AudioEncoder.pcm16bits,
         sampleRate: 16000,
         numChannels: 1,
+        autoGain: true,
       );
 
       // Start recording to stream
