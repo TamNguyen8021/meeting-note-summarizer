@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'audio_capture_interface.dart';
@@ -16,6 +18,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
 
   Timer? _chunkTimer;
   bool _isCapturing = false;
+  String? _tempFilePath;
   AudioSource? _currentSource;
   final List<AudioSource> _availableSources = [
     const AudioSource(
@@ -111,6 +114,10 @@ class PlatformAudioCapture implements AudioCaptureInterface {
         return false;
       }
 
+      // Create a temporary file path
+      final tempDir = await getTemporaryDirectory();
+      _tempFilePath = '${tempDir.path}/temp_audio_${DateTime.now().millisecondsSinceEpoch}.wav';
+
       // For real-time audio capture, we'll use the amplitude stream
       await _recorder.start(
         RecordConfig(
@@ -118,7 +125,7 @@ class PlatformAudioCapture implements AudioCaptureInterface {
           sampleRate: _audioConfig['sampleRate'],
           numChannels: _audioConfig['channels'],
         ),
-        path: 'temp_audio.wav', // Temporary file for recording
+        path: _tempFilePath!,
       );
 
       _isCapturing = true;
@@ -188,6 +195,16 @@ class PlatformAudioCapture implements AudioCaptureInterface {
       _chunkTimer?.cancel();
       _chunkTimer = null;
       _levelStreamController?.add(0.0);
+      
+      // Clean up temporary file
+      if (_tempFilePath != null) {
+        final tempFile = File(_tempFilePath!);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+          print('Cleaned up temporary audio file: $_tempFilePath');
+        }
+        _tempFilePath = null;
+      }
     } catch (e) {
       print('Error stopping recording: $e');
     }
