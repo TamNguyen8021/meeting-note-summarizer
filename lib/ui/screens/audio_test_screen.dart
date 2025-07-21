@@ -107,153 +107,157 @@ class _AudioTestScreenState extends State<AudioTestScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Status Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Status',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(_status),
-                    const SizedBox(height: 8),
-                    Text(
-                        'Audio Level: ${(_currentAudioLevel * 100).toStringAsFixed(1)}%'),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Audio Level Indicator
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Audio Level',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: _currentAudioLevel,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _currentAudioLevel > 0.8
-                            ? Colors.red
-                            : _currentAudioLevel > 0.5
-                                ? Colors.orange
-                                : Colors.green,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Status Section
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Status',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Audio Source Selection
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Audio Source',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    if (_availableSources.isEmpty)
-                      const Text('No audio sources available')
-                    else
-                      DropdownButton<AudioSource>(
-                        value: _selectedSource,
-                        isExpanded: true,
-                        onChanged: _isCapturing
-                            ? null
-                            : (AudioSource? source) {
-                                setState(() {
-                                  _selectedSource = source;
-                                });
-                              },
-                        items: _availableSources.map((AudioSource source) {
-                          return DropdownMenuItem<AudioSource>(
-                            value: source,
-                            child: Text('${source.name} (${source.type})'),
-                          );
-                        }).toList(),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Control Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _selectedSource == null ? null : _toggleCapture,
-                    icon: Icon(_isCapturing ? Icons.stop : Icons.play_arrow),
-                    label:
-                        Text(_isCapturing ? 'Stop Capture' : 'Start Capture'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isCapturing ? Colors.red : Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(_status),
+                      const SizedBox(height: 8),
+                      Text(
+                          'Audio Level: ${(_currentAudioLevel * 100).toStringAsFixed(1)}%'),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: _loadAudioSources,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Refresh'),
-                ),
-              ],
-            ),
+              ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Configuration Info
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Audio Configuration',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Sample Rate: 16,000 Hz'),
-                    const Text('Channels: 1 (Mono)'),
-                    const Text('Bit Depth: 16-bit'),
-                    const Text('Buffer Size: 100ms'),
-                  ],
+              // Audio Level Indicator
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Audio Level',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: _currentAudioLevel,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _currentAudioLevel > 0.8
+                              ? Colors.red
+                              : _currentAudioLevel > 0.5
+                                  ? Colors.orange
+                                  : Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 16),
+
+              // Audio Source Selection
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Audio Source',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_availableSources.isEmpty)
+                        const Text('No audio sources available')
+                      else
+                        DropdownButton<AudioSource>(
+                          value: _selectedSource,
+                          isExpanded: true,
+                          onChanged: _isCapturing
+                              ? null
+                              : (AudioSource? source) {
+                                  setState(() {
+                                    _selectedSource = source;
+                                  });
+                                },
+                          items: _availableSources.map((AudioSource source) {
+                            return DropdownMenuItem<AudioSource>(
+                              value: source,
+                              child: Text('${source.name} (${source.type})'),
+                            );
+                          }).toList(),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Control Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed:
+                          _selectedSource == null ? null : _toggleCapture,
+                      icon: Icon(_isCapturing ? Icons.stop : Icons.play_arrow),
+                      label:
+                          Text(_isCapturing ? 'Stop Capture' : 'Start Capture'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            _isCapturing ? Colors.red : Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: _loadAudioSources,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Configuration Info
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Audio Configuration',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Sample Rate: 16,000 Hz'),
+                      const Text('Channels: 1 (Mono)'),
+                      const Text('Bit Depth: 16-bit'),
+                      const Text('Buffer Size: 100ms'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
