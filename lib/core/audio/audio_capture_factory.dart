@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'audio_capture_interface.dart';
 import 'mobile_audio_capture.dart';
-import 'platform_audio_capture.dart';
+import 'hybrid_audio_capture.dart';
 
 /// Factory for creating platform-specific audio capture implementations
 class AudioCaptureFactory {
@@ -13,8 +13,8 @@ class AudioCaptureFactory {
     if (Platform.isAndroid || Platform.isIOS) {
       return MobileAudioCapture(config: config);
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-      // Use platform implementation with fallback support
-      return PlatformAudioCapture();
+      // Use hybrid implementation that supports both microphone and system audio
+      return HybridAudioCapture(config: config);
     } else {
       throw UnsupportedError(
         'Audio capture not supported on platform: ${Platform.operatingSystem}',
@@ -43,7 +43,7 @@ class AudioCaptureFactory {
     } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       return {
         'microphone': true,
-        'systemAudio': true,
+        'systemAudio': true, // Hybrid implementation provides this
         'virtualAudio': true,
         'backgroundProcessing': true,
       };
