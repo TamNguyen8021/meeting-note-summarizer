@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'speech_recognition_interface.dart';
 import 'summarization_interface.dart';
 import 'enhanced_model_manager.dart';
+import 'device_capability_detector.dart';
 import 'whisper_speech_recognition.dart';
 import 'llama_summarization.dart';
 import '../../services/mock_speech_recognition.dart';
@@ -25,6 +26,7 @@ class AiCoordinator extends ChangeNotifier {
   // State tracking
   bool _isInitialized = false;
   bool _isModelSwitching = false;
+  bool _adaptiveModelSwitchingEnabled = false;
   String? _lastError;
 
   // Current configuration
@@ -412,6 +414,161 @@ class AiCoordinator extends ChangeNotifier {
     if (_performanceHistory.length > 50) {
       _performanceHistory.removeAt(0);
     }
+  }
+
+  /// Automatically switch to optimal models based on device capabilities
+  Future<bool> enableAdaptiveModelSwitching() async {
+    // Prevent duplicate adaptive switching
+    if (_adaptiveModelSwitchingEnabled) {
+      debugPrint('Adaptive model switching already enabled');
+      return true;
+    }
+
+    try {
+      final capabilities = await DeviceCapabilityDetector.getCapabilities();
+
+      debugPrint('Device capabilities detected:');
+      debugPrint('  RAM: ${capabilities.availableRamGB}GB');
+      debugPrint('  CPU cores: ${capabilities.cpuCores}');
+      debugPrint('  Performance tier: ${capabilities.performanceTier}');
+      debugPrint(
+          '  Recommended speech: ${capabilities.recommendedSpeechModel}');
+      debugPrint(
+          '  Recommended summary: ${capabilities.recommendedSummaryModel}');
+
+      bool switchedAny = false;
+
+      // Switch speech model if different from recommendation
+      if (_currentSpeechModel != capabilities.recommendedSpeechModel &&
+          _modelManager.availableModels
+              .containsKey(capabilities.recommendedSpeechModel)) {
+        final speechSuccess =
+            await switchSpeechModel(capabilities.recommendedSpeechModel);
+        if (speechSuccess) {
+          switchedAny = true;
+          debugPrint(
+              'Adapted speech model to ${capabilities.recommendedSpeechModel}');
+        }
+      }
+
+      // Switch summarization model if different from recommendation
+      if (_currentSummaryModel != capabilities.recommendedSummaryModel &&
+          _modelManager.availableModels
+              .containsKey(capabilities.recommendedSummaryModel)) {
+        final summarySuccess = await switchSummarizationModel(
+            capabilities.recommendedSummaryModel);
+        if (summarySuccess) {
+          switchedAny = true;
+          debugPrint(
+              'Adapted summary model to ${capabilities.recommendedSummaryModel}');
+        }
+      }
+
+      if (switchedAny) {
+        _recordModelSwitch(
+            'auto-detect',
+            '${capabilities.recommendedSpeechModel}+${capabilities.recommendedSummaryModel}',
+            'adaptive');
+      }
+
+      _adaptiveModelSwitchingEnabled = true;
+      return true;
+    } catch (e) {
+      _lastError = 'Error in adaptive model switching: $e';
+      debugPrint(_lastError);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Check if a model would perform well on current device
+  Future<bool> canModelRunOptimally(String modelId) async {
+    if (!_modelManager.availableModels.containsKey(modelId)) {
+      return false;
+    }
+
+    final model = _modelManager.availableModels[modelId]!;
+    return await DeviceCapabilityDetector.canHandleModel(
+        modelId, model.sizeBytes / (1024 * 1024 * 1024));
+  }
+
+  /// Get model recommendations based on current device
+  Future<Map<String, String>> getModelRecommendations() async {
+    return await DeviceCapabilityDetector.getModelRecommendations();
+  }
+
+  /// Automatically switch models based on performance monitoring
+  Future<void> performanceBasedAdaptation() async {
+    if (_performanceHistory.length < 5) {
+      return; // Need some history to make decisions
+    }
+
+    try {
+      final capabilities = await DeviceCapabilityDetector.getCapabilities();
+
+      // Check recent performance issues
+      final recentMetrics = _performanceHistory
+          .where((m) => DateTime.now().difference(m.timestamp).inMinutes < 30)
+          .toList();
+
+      // If we have frequent model switches, there might be performance issues
+      final recentSwitches =
+          recentMetrics.where((m) => m.event == 'switch').length;
+
+      if (recentSwitches > 3) {
+        debugPrint('Frequent model switches detected, considering downgrade');
+
+        // Try to switch to more conservative models
+        if (capabilities.performanceTier == DevicePerformanceTier.high) {
+          // Already using optimal models, no change needed
+          return;
+        }
+
+        // Switch to lighter models if available
+        final lighterSpeechModels = ['whisper-tiny', 'whisper-base'];
+        final lighterSummaryModels = ['tinyllama-q4', 'llama-3.2-1b-q4'];
+
+        for (final model in lighterSpeechModels) {
+          if (model != _currentSpeechModel &&
+              _modelManager.availableModels.containsKey(model)) {
+            await switchSpeechModel(model);
+            debugPrint(
+                'Performance adaptation: switched to lighter speech model $model');
+            break;
+          }
+        }
+
+        for (final model in lighterSummaryModels) {
+          if (model != _currentSummaryModel &&
+              _modelManager.availableModels.containsKey(model)) {
+            await switchSummarizationModel(model);
+            debugPrint(
+                'Performance adaptation: switched to lighter summary model $model');
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in performance-based adaptation: $e');
+    }
+  }
+
+  /// Get device and model status summary
+  Future<Map<String, dynamic>> getSystemStatus() async {
+    final capabilities = await DeviceCapabilityDetector.getCapabilitySummary();
+    final modelStats = _modelManager.getStorageStats();
+
+    return {
+      'device_capabilities': capabilities,
+      'model_stats': modelStats,
+      'current_models': {
+        'speech': _currentSpeechModel,
+        'summarization': _currentSummaryModel,
+      },
+      'performance_metrics': _performanceHistory.length,
+      'last_adaptation': _lastModelSwitch?.toIso8601String(),
+      'using_mocks': _useMockImplementations,
+    };
   }
 
   /// Clean up resources
