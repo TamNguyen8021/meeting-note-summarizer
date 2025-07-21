@@ -9,6 +9,7 @@ import '../core/audio/audio_chunk.dart';
 import '../core/audio/audio_visualizer.dart';
 import '../core/ai/speech_recognition_interface.dart';
 import '../core/ai/summarization_interface.dart' as ai_summary;
+import '../core/ai/ai_coordinator.dart';
 import '../core/processing/realtime_processing_service.dart';
 import 'audio_service.dart';
 import 'ai_service.dart';
@@ -19,6 +20,7 @@ class MeetingService extends ChangeNotifier {
   final AudioService _audioService;
   final AiService _aiService;
   final RealTimeProcessingService _realtimeService;
+  final AiCoordinator _aiCoordinator;
   final Uuid _uuid = const Uuid();
 
   // Current session state
@@ -31,15 +33,19 @@ class MeetingService extends ChangeNotifier {
   StreamSubscription<List<AudioChunk>>? _audioSubscription;
 
   // Error handling
+  bool _isInitialized = false;
+  bool _isInitializing = false;
   String? _lastError;
 
   MeetingService({
     AudioService? audioService,
     AiService? aiService,
     RealTimeProcessingService? realtimeService,
+    AiCoordinator? aiCoordinator,
   })  : _audioService = audioService ?? AudioService(),
         _aiService = aiService ?? AiService(),
-        _realtimeService = realtimeService ?? RealTimeProcessingService() {
+        _realtimeService = realtimeService ?? RealTimeProcessingService(),
+        _aiCoordinator = aiCoordinator ?? AiCoordinator() {
     // Initialize services safely
     _safeInitialize();
   }
@@ -62,6 +68,7 @@ class MeetingService extends ChangeNotifier {
   List<SummarySegment> get liveSegments => List.unmodifiable(_liveSegments);
   List<Comment> get sessionComments => List.unmodifiable(_sessionComments);
   String? get lastError => _lastError;
+  bool get isInitialized => _isInitialized;
 
   // Audio service getters
   bool get isAudioInitialized => _audioService.isInitialized;
@@ -88,6 +95,16 @@ class MeetingService extends ChangeNotifier {
 
   /// Initialize the meeting service
   Future<bool> initialize() async {
+    if (_isInitialized) return true;
+    if (_isInitializing) {
+      // Wait for current initialization to complete
+      while (_isInitializing) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      return _isInitialized;
+    }
+
+    _isInitializing = true;
     try {
       _lastError = null;
 
@@ -107,12 +124,32 @@ class MeetingService extends ChangeNotifier {
         return false;
       }
 
+      // Initialize AI coordinator for adaptive model switching
+      debugPrint('Starting AI coordinator initialization...');
+      final coordinatorSuccess = await _aiCoordinator.initialize();
+      if (!coordinatorSuccess) {
+        debugPrint(
+            'AI coordinator initialization failed, continuing with basic AI functionality');
+      } else {
+        debugPrint('AI coordinator initialized successfully');
+        // Enable adaptive model switching based on device capabilities
+        debugPrint('Starting adaptive model switching...');
+        await _aiCoordinator.enableAdaptiveModelSwitching();
+        debugPrint('Adaptive model switching completed');
+      }
+
       // Initialize real-time processing service
+      debugPrint('Starting real-time processing service initialization...');
       final realtimeSuccess = await _realtimeService.initialize();
       if (!realtimeSuccess) {
         debugPrint(
             'Real-time processing initialization failed, continuing with basic functionality');
+      } else {
+        debugPrint('Real-time processing service initialized successfully');
       }
+
+      _isInitialized = true;
+      debugPrint('MeetingService initialization completed successfully');
 
       // Set up audio processing stream
       _setupAudioProcessing();
@@ -120,9 +157,12 @@ class MeetingService extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _lastError = 'Meeting service initialization error: $e';
+      _lastError = 'Failed to initialize meeting service: $e';
+      debugPrint(_lastError);
       notifyListeners();
       return false;
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -399,6 +439,49 @@ class MeetingService extends ChangeNotifier {
       speakers: segmentSpeakers,
       languages: [aiSummary.language],
     );
+  }
+
+  // Adaptive AI Features
+
+  /// Get current AI model recommendations based on device capabilities
+  Future<Map<String, String>> getModelRecommendations() async {
+    return await _aiCoordinator.getModelRecommendations();
+  }
+
+  /// Check if a specific model can run optimally on this device
+  Future<bool> canModelRunOptimally(String modelId) async {
+    return await _aiCoordinator.canModelRunOptimally(modelId);
+  }
+
+  /// Manually switch speech recognition model
+  Future<bool> switchSpeechModel(String modelId) async {
+    return await _aiCoordinator.switchSpeechModel(modelId);
+  }
+
+  /// Manually switch summarization model
+  Future<bool> switchSummarizationModel(String modelId) async {
+    return await _aiCoordinator.switchSummarizationModel(modelId);
+  }
+
+  /// Get current AI model information
+  Map<String, String> get currentAiModels => {
+        'speech': _aiCoordinator.currentSpeechModel,
+        'summarization': _aiCoordinator.currentSummaryModel,
+      };
+
+  /// Get system status including device capabilities and model information
+  Future<Map<String, dynamic>> getSystemStatus() async {
+    return await _aiCoordinator.getSystemStatus();
+  }
+
+  /// Enable/disable adaptive model switching
+  Future<bool> enableAdaptiveModels() async {
+    return await _aiCoordinator.enableAdaptiveModelSwitching();
+  }
+
+  /// Trigger performance-based model adaptation
+  Future<void> optimizePerformance() async {
+    await _aiCoordinator.performanceBasedAdaptation();
   }
 
   /// Convert AI priority string to our Priority enum
