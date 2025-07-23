@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../widgets/control_panel.dart';
 import '../widgets/summary_view.dart';
 import '../widgets/comments_section.dart';
@@ -38,9 +39,12 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
-  /// Initialize the meeting services
+  /// Initialize the meeting services and request permissions
   Future<void> _initializeServices() async {
     try {
+      // Request microphone permission first
+      await _requestMicrophonePermission();
+
       // Use a post-frame callback to ensure the widget is mounted
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
@@ -68,6 +72,55 @@ class _HomeScreenState extends State<HomeScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error initializing services: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Request microphone permission with user feedback
+  Future<void> _requestMicrophonePermission() async {
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Requesting microphone permission...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      final status = await Permission.microphone.request();
+
+      if (mounted) {
+        if (status == PermissionStatus.granted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Microphone permission granted!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Microphone permission denied. Status: $status'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'Retry',
+                onPressed: _requestMicrophonePermission,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Permission error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -109,32 +162,13 @@ class _HomeScreenState extends State<HomeScreen>
   /// Pause recording implementation
   Future<void> _pauseRecording() async {
     final meetingService = Provider.of<MeetingService>(context, listen: false);
-    final success = await meetingService.pauseMeeting();
-
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text(meetingService.lastError ?? 'Failed to pause recording'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    await meetingService.pauseMeeting();
   }
 
   /// Stop recording implementation
   Future<void> _stopRecording() async {
     final meetingService = Provider.of<MeetingService>(context, listen: false);
-    final success = await meetingService.stopMeeting();
-
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(meetingService.lastError ?? 'Failed to stop recording'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    await meetingService.stopMeeting();
   }
 
   /// Handle export action
