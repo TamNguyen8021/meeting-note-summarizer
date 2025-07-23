@@ -181,6 +181,7 @@ class AudioService extends ChangeNotifier {
     try {
       await _audioCapture.pauseCapture();
       _stopProcessingTimer();
+      _isCapturing = false; // Set capturing state to false when paused
       _lastError = null;
       notifyListeners();
     } catch (e) {
@@ -191,11 +192,10 @@ class AudioService extends ChangeNotifier {
 
   /// Resume audio capture
   Future<bool> resumeCapture() async {
-    if (_isCapturing) return true;
-
     try {
       final success = await _audioCapture.resumeCapture();
       if (success) {
+        _isCapturing = true; // Set capturing state to true when resumed
         _startProcessingTimer();
         _lastError = null;
         notifyListeners();
