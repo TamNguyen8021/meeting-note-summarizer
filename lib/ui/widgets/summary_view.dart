@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/meeting_session.dart';
+import '../../services/meeting_service.dart';
 
 /// Widget for displaying live and completed meeting summaries
 /// Shows summary segments with collapsible sections and real-time updates
@@ -42,35 +44,45 @@ class _SummaryViewState extends State<SummaryView> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.session == null) {
-      return _buildEmptyState(context);
-    }
+    return Consumer<MeetingService>(
+      builder: (context, meetingService, child) {
+        if (widget.session == null) {
+          return _buildEmptyState(context);
+        }
 
-    final session = widget.session!;
+        final session = widget.session!;
 
-    // Auto-scroll when new segments are added
-    if (widget.isLive && session.segments.isNotEmpty) {
-      _scrollToBottom();
-    }
+        // Show live segments when available, otherwise use session segments
+        // Keep showing live segments even when paused if they exist
+        final segments = meetingService.liveSegments.isNotEmpty
+            ? meetingService.liveSegments
+            : session.segments;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with session info
-          _buildHeader(context, session),
+        // Auto-scroll when new segments are added
+        if (widget.isLive && segments.isNotEmpty) {
+          _scrollToBottom();
+        }
 
-          const SizedBox(height: 16),
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with session info
+              _buildHeader(context, session),
 
-          // Summary content
-          Expanded(
-            child: session.segments.isEmpty
-                ? _buildNoSummaryState(context)
-                : _buildSummaryList(context, session),
+              const SizedBox(height: 16),
+
+              // Summary content
+              Expanded(
+                child: segments.isEmpty
+                    ? _buildNoSummaryState(context)
+                    : _buildSummaryList(context, session, segments),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -211,12 +223,13 @@ class _SummaryViewState extends State<SummaryView> {
   }
 
   /// Build list of summary segments
-  Widget _buildSummaryList(BuildContext context, MeetingSession session) {
+  Widget _buildSummaryList(BuildContext context, MeetingSession session,
+      List<SummarySegment> segments) {
     return ListView.builder(
       controller: _scrollController,
-      itemCount: session.segments.length,
+      itemCount: segments.length,
       itemBuilder: (context, index) {
-        final segment = session.segments[index];
+        final segment = segments[index];
         final isExpanded = _expandedSegments.contains(segment.id);
 
         return Padding(
@@ -232,11 +245,16 @@ class _SummaryViewState extends State<SummaryView> {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: Text(
-                  '${index + 1}',
-                  style: const TextStyle(color: Colors.white),
-                ),
+                backgroundColor: widget.isLive
+                    ? Colors.red
+                    : Theme.of(context).colorScheme.primary,
+                child: widget.isLive
+                    ? const Icon(Icons.radio_button_checked,
+                        color: Colors.white, size: 16)
+                    : Text(
+                        '${index + 1}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
               ),
               initiallyExpanded: isExpanded,
               onExpansionChanged: (expanded) {
