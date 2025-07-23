@@ -12,6 +12,8 @@ dependencies:
   # Audio processing
   record: ^5.0.4
   permission_handler: ^11.0.1
+  # Speech recognition
+  speech_to_text: ^6.6.0
   # Database and storage
   sqflite: ^2.3.0
   path_provider: ^2.1.1
