@@ -39,8 +39,8 @@ class AiService extends ChangeNotifier {
   }) {
     _modelManager = modelManager ?? ModelManager();
 
-    // Use mocks by default for development, real implementations when ready
-    if (useMockImplementations || kDebugMode) {
+    // Use real implementations when explicitly requested, regardless of debug mode
+    if (useMockImplementations) {
       _speechRecognition = speechRecognition ?? MockSpeechRecognition();
       _summarization = summarization ?? MockSummarization();
     } else {

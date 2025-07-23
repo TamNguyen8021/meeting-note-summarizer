@@ -49,18 +49,19 @@ class MockSummarization implements SummarizationInterface {
         .toSet()
         .toList();
 
-    // Generate mock topic
-    final topics = [
-      'Quarterly Review',
-      'Project Planning',
-      'Budget Discussion',
-      'Team Updates',
-      'Client Requirements',
-      'Technical Architecture',
-      'Market Analysis',
-      'Strategy Session',
+    // Generate mock topic based on time and content
+    final timeBasedTopics = [
+      'Meeting Opening & Introductions',
+      'Project Status Review',
+      'Budget & Resource Planning', 
+      'Technical Architecture Discussion',
+      'Client Requirements Analysis',
+      'Risk Assessment & Mitigation',
+      'Next Steps & Action Items',
+      'Closing Remarks & Schedule',
     ];
-    final topic = topics[_random.nextInt(topics.length)];
+    final topicIndex = DateTime.now().millisecond % timeBasedTopics.length;
+    final topic = timeBasedTopics[topicIndex];
 
     // Generate mock key points
     final keyPoints = _generateKeyPoints(speechSegments);

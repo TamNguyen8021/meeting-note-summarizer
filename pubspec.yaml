@@ -58,3 +58,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Bundle AI models as assets
+  assets:
+    - assets/models/
+    - assets/models/whisper-tiny.bin
+    - assets/models/tinyllama-q4.gguf

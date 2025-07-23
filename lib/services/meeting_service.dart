@@ -11,6 +11,7 @@ import '../core/ai/speech_recognition_interface.dart';
 import '../core/ai/summarization_interface.dart' as ai_summary;
 import '../core/ai/ai_coordinator.dart';
 import '../core/processing/realtime_processing_service.dart';
+import '../core/database/database_service.dart';
 import 'audio_service.dart';
 import 'ai_service.dart';
 import 'real_speech_service.dart';
@@ -23,6 +24,7 @@ class MeetingService extends ChangeNotifier {
   final RealTimeProcessingService _realtimeService;
   final AiCoordinator _aiCoordinator;
   final RealSpeechService _speechService;
+  final DatabaseService _databaseService;
   final Uuid _uuid = const Uuid();
 
   // Current session state
@@ -46,11 +48,13 @@ class MeetingService extends ChangeNotifier {
     RealTimeProcessingService? realtimeService,
     AiCoordinator? aiCoordinator,
     RealSpeechService? speechService,
+    DatabaseService? databaseService,
   })  : _audioService = audioService ?? AudioService(),
         _aiService = aiService ?? AiService(useMockImplementations: false),
         _realtimeService = realtimeService ?? RealTimeProcessingService(),
         _aiCoordinator = aiCoordinator ?? AiCoordinator(),
-        _speechService = speechService ?? RealSpeechService() {
+        _speechService = speechService ?? RealSpeechService(),
+        _databaseService = databaseService ?? DatabaseService() {
     // Initialize services safely
     _safeInitialize();
   }
@@ -89,6 +93,29 @@ class MeetingService extends ChangeNotifier {
   List<String> get identifiedSpeakers => _aiService.identifiedSpeakers;
   bool get isProcessing => _aiService.isProcessing;
 
+  // Database methods for retrieving saved meetings
+  Future<List<MeetingSession>> getAllMeetings() async {
+    try {
+      return await _databaseService.getAllMeetingSessions();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error retrieving meetings: $e');
+      }
+      return [];
+    }
+  }
+
+  Future<MeetingSession?> getMeetingById(String id) async {
+    try {
+      return await _databaseService.loadMeetingSession(id);
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error retrieving meeting $id: $e');
+      }
+      return null;
+    }
+  }
+
   // Real-time processing getters
   Stream<AudioVisualizerData> get audioVisualization =>
       _realtimeService.visualizationData;
@@ -121,7 +148,8 @@ class MeetingService extends ChangeNotifier {
         return false;
       }
 
-      // Initialize AI service
+      // Initialize AI service (download models if needed)
+      await _ensureRequiredModelsAvailable();
       final aiSuccess = await _aiService.initialize();
       if (!aiSuccess) {
         _lastError = _aiService.lastError ?? 'Failed to initialize AI';
@@ -325,6 +353,19 @@ class MeetingService extends ChangeNotifier {
           comments: _sessionComments,
           hasCodeSwitching: _detectCodeSwitching(),
         );
+
+        // Save session to database
+        try {
+          await _databaseService.saveMeetingSession(_currentSession!);
+          if (kDebugMode) {
+            print('Meeting session saved successfully: ${_currentSession!.id}');
+          }
+        } catch (dbError) {
+          if (kDebugMode) {
+            print('Failed to save meeting session: $dbError');
+          }
+          // Don't fail the whole stop operation due to database error
+        }
       }
 
       _recordingState = RecordingState.stopped;
@@ -783,6 +824,42 @@ class MeetingService extends ChangeNotifier {
     final languages =
         _aiService.allSpeechSegments.map((s) => s.language).toSet();
     return languages.length > 1;
+  }
+
+  /// Ensure required AI models are downloaded before starting processing
+  Future<void> _ensureRequiredModelsAvailable() async {
+    try {
+      final modelManager = _aiService.modelManager;
+      
+      // Load Whisper model from bundled assets
+      if (!modelManager.availableModels.containsKey('whisper-tiny') ||
+          !modelManager.availableModels['whisper-tiny']!.isDownloaded) {
+        if (kDebugMode) {
+          print('Loading Whisper model from assets...');
+        }
+        await modelManager.loadModelFromAssets('whisper-tiny');
+      }
+
+      // Load TinyLlama model from bundled assets
+      if (!modelManager.availableModels.containsKey('tinyllama-q4') ||
+          !modelManager.availableModels['tinyllama-q4']!.isDownloaded) {
+        if (kDebugMode) {
+          print('Loading TinyLlama model from assets...');
+        }
+        await modelManager.loadModelFromAssets('tinyllama-q4');
+      }
+
+      if (kDebugMode) {
+        print('Required AI models are loaded from assets');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading models from assets: $e');
+        print('Continuing with mock implementations for demo');
+      }
+      // Don't fail initialization, just log the error
+      // The AI services will fall back to mock implementations if models aren't available
+    }
   }
 
   @override

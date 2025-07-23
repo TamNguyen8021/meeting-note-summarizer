@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -701,6 +703,76 @@ class ModelManager extends ChangeNotifier {
       );
       _lastError = 'Download error: $e';
       notifyListeners();
+      return false;
+    }
+  }
+
+  /// Load a model from bundled assets (faster alternative to downloading)
+  Future<bool> loadModelFromAssets(String modelId) async {
+    final modelInfo = _availableModels[modelId];
+    if (modelInfo == null) {
+      _lastError = 'Model not found: $modelId';
+      return false;
+    }
+
+    if (modelInfo.isDownloaded) {
+      return true; // Already loaded
+    }
+
+    try {
+      final modelsDir = _modelsDirectory;
+      if (modelsDir == null) {
+        _lastError = 'Models directory not initialized';
+        return false;
+      }
+
+      // Define asset path based on model ID
+      String assetPath;
+      switch (modelId) {
+        case 'whisper-tiny':
+          assetPath = 'assets/models/whisper-tiny.bin';
+          break;
+        case 'tinyllama-q4':
+          assetPath = 'assets/models/tinyllama-q4.gguf';
+          break;
+        default:
+          _lastError = 'Model $modelId is not bundled as an asset';
+          return false;
+      }
+
+      debugPrint('Loading ${modelInfo.name} from bundled assets...');
+      
+      // Copy asset to models directory
+      final targetPath = path.join(modelsDir.path, modelInfo.filename);
+      final assetData = await rootBundle.load(assetPath);
+      final bytes = assetData.buffer.asUint8List();
+      
+      // Check if it's a placeholder file (small text file)
+      if (bytes.length < 1000 && 
+          String.fromCharCodes(bytes).contains('Placeholder')) {
+        debugPrint('Warning: Using placeholder model file for ${modelInfo.name}');
+        debugPrint('For production, replace with actual model files');
+        // Continue anyway for development purposes
+      }
+      
+      final file = File(targetPath);
+      await file.writeAsBytes(bytes);
+
+      final updatedModel = modelInfo.copyWith(
+        localPath: targetPath,
+        isDownloaded: true,
+        downloadedAt: DateTime.now(),
+      );
+
+      _loadedModels[modelId] = updatedModel;
+      _availableModels[modelId] = updatedModel;
+
+      debugPrint('Model loaded from assets successfully: ${modelInfo.name}');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _lastError = 'Failed to load model from assets: $e';
+      debugPrint(_lastError);
       return false;
     }
   }
