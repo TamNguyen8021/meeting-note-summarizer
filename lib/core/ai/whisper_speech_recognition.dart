@@ -135,8 +135,11 @@ class WhisperSpeechRecognition implements SpeechRecognitionInterface {
       final combinedAudio = _combineAudioSamples(audioSamples);
 
       if (_whisperLib == null || _whisperContext == null) {
-        // Development mode - return mock data
-        return _generateMockSpeechSegments(audioSamples, startTime);
+        // Return empty list if Whisper is not properly initialized
+        if (kDebugMode) {
+          print('Whisper not initialized - cannot process audio');
+        }
+        return [];
       }
 
       // Process with Whisper
@@ -240,38 +243,8 @@ class WhisperSpeechRecognition implements SpeechRecognitionInterface {
       if (kDebugMode) {
         print('Whisper context initialization failed: $e');
       }
-      return true; // Allow development with mocks
+      return false; // Return false if initialization fails
     }
-  }
-
-  /// Generate mock speech segments for development
-  List<SpeechSegment> _generateMockSpeechSegments(
-      List<Float32List> audioSamples, DateTime? startTime) {
-    final now = startTime ?? DateTime.now();
-    final segments = <SpeechSegment>[];
-
-    // Generate realistic mock segments
-    final mockTexts = [
-      "Welcome everyone to today's meeting. Let's start with the agenda.",
-      "Thank you for joining. I'd like to discuss the project timeline.",
-      "We need to review the budget allocations for next quarter.",
-      "Let's schedule a follow-up meeting to finalize these decisions.",
-    ];
-
-    for (int i = 0; i < audioSamples.length && i < mockTexts.length; i++) {
-      final speakerId = _assignSpeakerId(mockTexts[i]);
-      segments.add(SpeechSegment(
-        text: mockTexts[i],
-        startTime: now.add(Duration(seconds: i * 10)),
-        endTime: now.add(Duration(seconds: (i * 10) + 8)),
-        confidence: 0.85 + (i * 0.03), // Vary confidence
-        language: _config.language,
-        speakerId: speakerId,
-        speakerName: _getSpeakerName(speakerId),
-      ));
-    }
-
-    return segments;
   }
 
   /// Combine multiple audio samples into one
@@ -299,7 +272,10 @@ class WhisperSpeechRecognition implements SpeechRecognitionInterface {
     DateTime? startTime,
   ) async {
     if (_whisperLib == null || _whisperContext == null) {
-      return _generateMockSpeechSegments([audioData], startTime);
+      if (kDebugMode) {
+        print('Whisper not initialized - cannot process audio');
+      }
+      return [];
     }
 
     try {
@@ -387,7 +363,7 @@ class WhisperSpeechRecognition implements SpeechRecognitionInterface {
       return segments;
     } catch (e) {
       debugPrint('Whisper processing error: $e');
-      return _generateMockSpeechSegments([audioData], startTime);
+      return [];
     }
   }
 

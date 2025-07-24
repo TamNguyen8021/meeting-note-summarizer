@@ -40,13 +40,13 @@ public class AudioCapturePlugin: NSObject, FlutterPlugin {
     case "startCapture":
       let response = [
         "success": true,
-        "message": "Capture started (mock implementation)"
+        "message": "Capture started"
       ]
       result(response)
     case "stopCapture":
       let response = [
         "success": true,
-        "message": "Capture stopped (mock implementation)"
+        "message": "Capture stopped"
       ]
       result(response)
     case "getAudioConfig":

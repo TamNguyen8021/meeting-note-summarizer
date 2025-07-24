@@ -50,15 +50,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  # Testing utilities
-  mockito: ^5.4.2
+  # Development dependencies
   build_runner: ^2.4.7
   # JSON code generation
   json_serializable: ^6.7.1
 
 flutter:
   uses-material-design: true
-  
+
   # Bundle AI models as assets
   assets:
     - assets/models/

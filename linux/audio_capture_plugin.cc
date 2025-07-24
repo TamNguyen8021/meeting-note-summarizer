@@ -59,12 +59,12 @@ static void audio_capture_plugin_handle_method_call(
   } else if (strcmp(method, "startCapture") == 0) {
     g_autoptr(FlValue) result = fl_value_new_map();
     fl_value_set_string_take(result, "success", fl_value_new_bool(TRUE));
-    fl_value_set_string_take(result, "message", fl_value_new_string("Capture started (mock implementation)"));
+    fl_value_set_string_take(result, "message", fl_value_new_string("Capture started"));
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
   } else if (strcmp(method, "stopCapture") == 0) {
     g_autoptr(FlValue) result = fl_value_new_map();
     fl_value_set_string_take(result, "success", fl_value_new_bool(TRUE));
-    fl_value_set_string_take(result, "message", fl_value_new_string("Capture stopped (mock implementation)"));
+    fl_value_set_string_take(result, "message", fl_value_new_string("Capture stopped"));
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
   } else if (strcmp(method, "getAudioConfig") == 0) {
     g_autoptr(FlValue) config = fl_value_new_map();

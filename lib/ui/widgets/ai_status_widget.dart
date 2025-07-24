@@ -52,50 +52,66 @@ class _AiStatusWidgetState extends State<AiStatusWidget>
   Widget build(BuildContext context) {
     return Consumer2<AiCoordinator, ModelManager>(
       builder: (context, aiCoordinator, modelManager, child) {
+        if (!aiCoordinator.isInitialized) {
+          return _buildLoadingIndicator();
+        }
+
         return GestureDetector(
           onTap: widget.onTap,
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: _getStatusColor(aiCoordinator).withOpacity(0.3),
+                color: Colors.grey.withOpacity(0.3),
                 width: 1,
               ),
-              gradient: LinearGradient(
-                colors: [
-                  _getStatusColor(aiCoordinator).withOpacity(0.05),
-                  _getStatusColor(aiCoordinator).withOpacity(0.02),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatusHeader(aiCoordinator),
-                if (widget.showDetailedStats) ...[
-                  const SizedBox(height: 12),
-                  _buildDetailedStats(aiCoordinator, modelManager),
-                ],
-              ],
-            ),
+            child: widget.showDetailedStats
+                ? _buildDetailedStats(aiCoordinator, modelManager)
+                : _buildCompactStatus(aiCoordinator),
           ),
         );
       },
     );
   }
 
-  Widget _buildStatusHeader(AiCoordinator aiCoordinator) {
+  Widget _buildLoadingIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 6),
+          Text(
+            'Loading AI...',
+            style: TextStyle(fontSize: 10, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactStatus(AiCoordinator aiCoordinator) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // AI Mode indicator
+        // Status indicator with animation
         AnimatedBuilder(
           animation: _glowAnimation,
           builder: (context, child) {
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: _getStatusColor(aiCoordinator)
                     .withOpacity(_glowAnimation.value * 0.3),
@@ -140,7 +156,7 @@ class _AiStatusWidgetState extends State<AiStatusWidget>
               size: 16,
               color: Theme.of(context).primaryColor,
             ),
-            tooltip: 'Switch AI Mode',
+            tooltip: 'Switch AI Models',
             constraints: const BoxConstraints(
               minWidth: 24,
               minHeight: 24,
@@ -254,24 +270,24 @@ class _AiStatusWidgetState extends State<AiStatusWidget>
   // Helper methods
 
   Color _getStatusColor(AiCoordinator aiCoordinator) {
-    if (aiCoordinator.useMockImplementations) {
+    if (aiCoordinator.isModelSwitching) {
       return Colors.orange;
     }
     return Colors.green;
   }
 
   IconData _getStatusIcon(AiCoordinator aiCoordinator) {
-    if (aiCoordinator.useMockImplementations) {
-      return Icons.code;
+    if (aiCoordinator.isModelSwitching) {
+      return Icons.sync;
     }
     return Icons.smart_toy;
   }
 
   String _getStatusText(AiCoordinator aiCoordinator) {
-    if (aiCoordinator.useMockImplementations) {
-      return 'MOCK AI';
+    if (aiCoordinator.isModelSwitching) {
+      return 'SWITCHING';
     }
-    return 'REAL AI';
+    return 'AI READY';
   }
 
   String _formatModelName(String modelId) {
@@ -290,153 +306,90 @@ class _AiStatusWidgetState extends State<AiStatusWidget>
         return 'TinyLlama';
       case 'phi-3-mini-q4':
         return 'Phi-3 Mini';
-      case 'mock-speech':
-        return 'Mock Speech';
-      case 'mock-summary':
-        return 'Mock Summary';
       default:
         return modelId;
     }
   }
 }
 
-/// Quick switch bottom sheet for changing AI modes and models
-class _QuickSwitchSheet extends StatelessWidget {
+/// Quick switch bottom sheet for changing AI models
+class _QuickSwitchSheet extends StatefulWidget {
   final AiCoordinator aiCoordinator;
 
   const _QuickSwitchSheet({required this.aiCoordinator});
 
   @override
+  State<_QuickSwitchSheet> createState() => _QuickSwitchSheetState();
+}
+
+class _QuickSwitchSheetState extends State<_QuickSwitchSheet> {
+  AiCoordinator get aiCoordinator => widget.aiCoordinator;
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Quick AI Switch',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-
-            // AI Mode toggle
-            _buildModeToggle(context),
-            const SizedBox(height: 16),
-
-            // Quick model presets
-            Text(
-              'Quick Presets',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            _buildPresetButtons(context),
-
-            const SizedBox(height: 16),
-
-            // Advanced button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // TODO: Navigate to model management screen
-                },
-                icon: const Icon(Icons.settings),
-                label: const Text('Advanced Model Settings'),
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'AI Model Settings',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-            ),
-          ],
-        ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildCurrentModels(),
+          const SizedBox(height: 16),
+          _buildPresetButtons(context),
+          const SizedBox(height: 16),
+        ],
       ),
     );
   }
 
-  Widget _buildModeToggle(BuildContext context) {
+  Widget _buildCurrentModels() {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _switchToMock(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: aiCoordinator.useMockImplementations
-                      ? Colors.orange
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.code,
-                      size: 16,
-                      color: aiCoordinator.useMockImplementations
-                          ? Colors.white
-                          : Colors.orange,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Mock AI',
-                      style: TextStyle(
-                        color: aiCoordinator.useMockImplementations
-                            ? Colors.white
-                            : Colors.orange,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          const Text(
+            'Current Models',
+            style: TextStyle(fontWeight: FontWeight.w500),
           ),
-          Expanded(
-            child: GestureDetector(
-              onTap: () => _switchToReal(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: !aiCoordinator.useMockImplementations
-                      ? Colors.green
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.smart_toy,
-                      size: 16,
-                      color: !aiCoordinator.useMockImplementations
-                          ? Colors.white
-                          : Colors.green,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Real AI',
-                      style: TextStyle(
-                        color: !aiCoordinator.useMockImplementations
-                            ? Colors.white
-                            : Colors.green,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.mic, size: 16, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                  'Speech: ${_formatModelName(aiCoordinator.currentSpeechModel)}'),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.summarize, size: 16, color: Colors.green),
+              const SizedBox(width: 8),
+              Text(
+                  'Summary: ${_formatModelName(aiCoordinator.currentSummaryModel)}'),
+            ],
           ),
         ],
       ),
@@ -445,7 +398,13 @@ class _QuickSwitchSheet extends StatelessWidget {
 
   Widget _buildPresetButtons(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Quick Presets',
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
         _buildPresetButton(
           context,
           'Fast & Light',
@@ -484,22 +443,17 @@ class _QuickSwitchSheet extends StatelessWidget {
     Color color,
     VoidCallback onTap,
   ) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: Colors.grey.withOpacity(0.3)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: color.withOpacity(0.1),
-              child: Icon(icon, size: 16, color: color),
-            ),
+            Icon(icon, size: 20, color: color),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -507,7 +461,10 @@ class _QuickSwitchSheet extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
                   ),
                   Text(
                     subtitle,
@@ -526,46 +483,9 @@ class _QuickSwitchSheet extends StatelessWidget {
     );
   }
 
-  Future<void> _switchToMock(BuildContext context) async {
-    if (!aiCoordinator.useMockImplementations) {
-      await aiCoordinator.switchToMockImplementations();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Switched to Mock AI mode'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _switchToReal(BuildContext context) async {
-    if (aiCoordinator.useMockImplementations) {
-      final success = await aiCoordinator.switchToRealImplementations();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Switched to Real AI mode'
-                  : 'Failed to switch: ${aiCoordinator.lastError}',
-            ),
-            backgroundColor: success ? Colors.green : Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _applyPreset(
       BuildContext context, String speechModel, String summaryModel) async {
     Navigator.pop(context);
-
-    // Switch to real AI first if needed
-    if (aiCoordinator.useMockImplementations) {
-      await aiCoordinator.switchToRealImplementations();
-    }
 
     // Switch models
     final speechSuccess = await aiCoordinator.switchSpeechModel(speechModel);
@@ -584,6 +504,27 @@ class _QuickSwitchSheet extends StatelessWidget {
               (speechSuccess && summarySuccess) ? Colors.green : Colors.orange,
         ),
       );
+    }
+  }
+
+  String _formatModelName(String modelId) {
+    switch (modelId) {
+      case 'whisper-tiny':
+        return 'Whisper Tiny';
+      case 'whisper-base':
+        return 'Whisper Base';
+      case 'whisper-small':
+        return 'Whisper Small';
+      case 'llama-3.2-1b-q4':
+        return 'Llama 3.2 1B';
+      case 'llama-3.2-3b-q4':
+        return 'Llama 3.2 3B';
+      case 'tinyllama-q4':
+        return 'TinyLlama';
+      case 'phi-3-mini-q4':
+        return 'Phi-3 Mini';
+      default:
+        return modelId;
     }
   }
 }

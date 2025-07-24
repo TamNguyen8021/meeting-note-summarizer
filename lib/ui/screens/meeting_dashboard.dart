@@ -275,8 +275,7 @@ class _MeetingDashboardState extends State<MeetingDashboard>
             const SizedBox(height: 12),
             _buildPipelineStep(
               'Speech Recognition',
-              meetingService.recordingState.toString().contains('recording') &&
-                  !aiCoordinator.useMockImplementations,
+              meetingService.recordingState.toString().contains('recording'),
               'Converting speech to text',
               Icons.hearing,
             ),

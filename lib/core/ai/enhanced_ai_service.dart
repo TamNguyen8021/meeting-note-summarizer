@@ -57,7 +57,6 @@ class EnhancedAiService extends ChangeNotifier {
   // Configuration
   String get currentSpeechModel => _aiCoordinator.currentSpeechModel;
   String get currentSummaryModel => _aiCoordinator.currentSummaryModel;
-  bool get useMockImplementations => _aiCoordinator.useMockImplementations;
   bool get adaptiveModelSwitching => _processingPipeline.adaptiveModelSwitching;
 
   // Quality metrics
@@ -165,16 +164,6 @@ class EnhancedAiService extends ChangeNotifier {
       _lastError = 'Error stopping AI session: $e';
       debugPrint(_lastError);
     }
-  }
-
-  /// Switch to real AI implementations
-  Future<bool> switchToRealAI() async {
-    if (!_isInitialized) {
-      _lastError = 'Service not initialized';
-      return false;
-    }
-
-    return await _aiCoordinator.switchToRealImplementations();
   }
 
   /// Switch speech recognition model

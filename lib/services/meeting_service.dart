@@ -50,7 +50,7 @@ class MeetingService extends ChangeNotifier {
     RealSpeechService? speechService,
     DatabaseService? databaseService,
   })  : _audioService = audioService ?? AudioService(),
-        _aiService = aiService ?? AiService(useMockImplementations: false),
+        _aiService = aiService ?? AiService(),
         _realtimeService = realtimeService ?? RealTimeProcessingService(),
         _aiCoordinator = aiCoordinator ?? AiCoordinator(),
         _speechService = speechService ?? RealSpeechService(),
@@ -446,225 +446,122 @@ class MeetingService extends ChangeNotifier {
           if (kDebugMode) {
             print('Timer triggered: generating real-time summary');
           }
+          // Call async method without awaiting to avoid blocking the timer
           _generateRealtimeSummary();
         }
       },
     );
   }
 
-  /// Generate realistic meeting summaries for demo (no more mock placeholders)
-  void _generateRealtimeSummary() {
+  /// Generate real-time summary using AI services
+  Future<void> _generateRealtimeSummary() async {
     if (_currentSession == null) return;
 
-    final now = DateTime.now();
-    final sessionStart = _currentSession!.startTime;
-    final segmentStart = now.subtract(const Duration(seconds: 10));
-    final audioLevel = _audioService.currentAudioLevel;
+    try {
+      // Get recent speech transcriptions from the speech service
+      final recentTranscriptions =
+          _speechService.getRecentTranscriptions(lastNSegments: 3);
 
-    if (kDebugMode) {
-      print(
-          'Generating demo-ready summary: audio level = ${(audioLevel * 100).toStringAsFixed(1)}%');
+      if (recentTranscriptions.isEmpty) {
+        if (kDebugMode) {
+          print('No recent transcriptions available for summarization');
+        }
+        return;
+      }
+
+      // Get the latest transcriptions with meaningful content
+      final textToSummarize = recentTranscriptions
+          .where((text) => text.trim().isNotEmpty)
+          .join(' ');
+
+      if (textToSummarize.trim().isEmpty) {
+        if (kDebugMode) {
+          print('No meaningful text to summarize');
+        }
+        return;
+      }
+
+      // Check if we have any AI summaries from the AI service
+      final aiSummaries = _aiService.summaries;
+
+      final now = DateTime.now();
+      final sessionStart = _currentSession!.startTime;
+      final segmentStart = now.subtract(const Duration(seconds: 10));
+
+      // Create a summary segment from available data
+      SummarySegment segment;
+
+      if (aiSummaries.isNotEmpty) {
+        // Use the latest AI-generated summary
+        final latestSummary = aiSummaries.last;
+        segment = SummarySegment(
+          id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
+          startTime: segmentStart.difference(sessionStart),
+          endTime: now.difference(sessionStart),
+          keyPoints: latestSummary.keyPoints.isNotEmpty
+              ? latestSummary.keyPoints
+              : ['Summary: $textToSummarize'],
+          actionItems: _convertActionItems(latestSummary.actionItems),
+          speakers: _extractSpeakersFromText(textToSummarize),
+          topic: latestSummary.topic.isNotEmpty
+              ? latestSummary.topic
+              : 'Meeting Discussion',
+        );
+      } else {
+        // Create a basic segment from transcribed text
+        segment = SummarySegment(
+          id: 'transcript_${DateTime.now().millisecondsSinceEpoch}',
+          startTime: segmentStart.difference(sessionStart),
+          endTime: now.difference(sessionStart),
+          keyPoints: [
+            'Discussion in progress: ${textToSummarize.length > 100 ? '${textToSummarize.substring(0, 100)}...' : textToSummarize}'
+          ],
+          actionItems: [],
+          speakers: _extractSpeakersFromText(textToSummarize),
+          topic: 'Live Transcription',
+        );
+      }
+
+      _liveSegments.add(segment);
+
+      // Keep only last 10 segments for performance
+      if (_liveSegments.length > 10) {
+        _liveSegments.removeAt(0);
+      }
+
+      if (kDebugMode) {
+        print(
+            'Added real-time segment: ${segment.topic} with ${segment.keyPoints.length} key points');
+      }
+
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error generating real-time summary: $e');
+      }
+      _lastError = 'Failed to generate summary: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Extract speakers from text (simplified approach)
+  List<Speaker> _extractSpeakersFromText(String text) {
+    // Get speaker information from the AI service if available
+    final identifiedSpeakers = _aiService.identifiedSpeakers;
+
+    if (identifiedSpeakers.isNotEmpty) {
+      return identifiedSpeakers.asMap().entries.map((entry) {
+        return Speaker(
+          id: 'speaker_${entry.key}',
+          name: entry.value,
+        );
+      }).toList();
     }
 
-    final sessionDuration = now.difference(sessionStart);
-    final isHighActivity = audioLevel > 0.05;
-    final isMediumActivity = audioLevel > 0.02;
-
-    // Generate realistic meeting content based on timing and audio activity
-    String topic;
-    List<String> keyPoints;
-    List<ActionItem> actionItems;
-    List<Speaker> speakers;
-
-    if (sessionDuration.inMinutes < 2) {
-      // Opening phase
-      topic = 'Meeting Opening & Introductions';
-      keyPoints = [
-        'Welcome and introductions completed',
-        'Agenda items reviewed and confirmed',
-        'Meeting objectives outlined for the team',
-        '${isHighActivity ? 'Active participation' : 'Attentive listening'} from attendees',
-        'Expected duration: 45-60 minutes',
-      ];
-      actionItems = [
-        ActionItem(
-          id: 'action_opening_1',
-          description: 'Share meeting agenda with all participants',
-          assignee: 'Meeting Organizer',
-          dueDate: now.add(const Duration(hours: 1)),
-          priority: Priority.high,
-        ),
-      ];
-      speakers = [
-        Speaker(id: 'moderator', name: 'Meeting Moderator'),
-        if (isHighActivity) Speaker(id: 'participant_1', name: 'Team Lead'),
-      ];
-    } else if (sessionDuration.inMinutes < 5) {
-      // Project status discussion
-      topic = 'Project Status Update & Current Progress';
-      keyPoints = [
-        'Current sprint progress: 75% completion rate achieved',
-        'Key milestones reached ahead of schedule',
-        '${isHighActivity ? 'Detailed discussion' : 'Brief overview'} of completed tasks',
-        'Team velocity metrics showing positive trend',
-        'No major blockers identified at this time',
-      ];
-      actionItems = [
-        ActionItem(
-          id: 'action_status_1',
-          description: 'Update project dashboard with latest metrics',
-          assignee: 'Project Manager',
-          dueDate: now.add(const Duration(days: 1)),
-          priority: Priority.medium,
-        ),
-        ActionItem(
-          id: 'action_status_2',
-          description: 'Schedule individual check-ins with team members',
-          assignee: 'Team Lead',
-          dueDate: now.add(const Duration(days: 2)),
-          priority: Priority.low,
-        ),
-      ];
-      speakers = [
-        Speaker(id: 'pm', name: 'Project Manager'),
-        Speaker(id: 'dev_lead', name: 'Development Lead'),
-        if (isMediumActivity) Speaker(id: 'qa_lead', name: 'QA Lead'),
-      ];
-    } else if (sessionDuration.inMinutes < 8) {
-      // Technical discussion
-      topic = 'Technical Architecture & Implementation';
-      keyPoints = [
-        'Database optimization strategies discussed and approved',
-        'API performance improvements showing 40% speed increase',
-        '${isHighActivity ? 'In-depth technical debate' : 'Technical overview'} on scalability',
-        'Security audit recommendations being implemented',
-        'Integration testing phase scheduled for next week',
-      ];
-      actionItems = [
-        ActionItem(
-          id: 'action_tech_1',
-          description: 'Complete database indexing optimization',
-          assignee: 'Senior Developer',
-          dueDate: now.add(const Duration(days: 3)),
-          priority: Priority.high,
-        ),
-        ActionItem(
-          id: 'action_tech_2',
-          description: 'Review and update API documentation',
-          assignee: 'Technical Writer',
-          dueDate: now.add(const Duration(days: 5)),
-          priority: Priority.medium,
-        ),
-      ];
-      speakers = [
-        Speaker(id: 'architect', name: 'System Architect'),
-        Speaker(id: 'senior_dev', name: 'Senior Developer'),
-        if (isHighActivity) Speaker(id: 'devops', name: 'DevOps Engineer'),
-      ];
-    } else if (sessionDuration.inMinutes < 12) {
-      // Budget and resource planning
-      topic = 'Budget Review & Resource Allocation';
-      keyPoints = [
-        'Q4 budget allocation reviewed and realigned with priorities',
-        'Additional resources approved for critical path activities',
-        '${isHighActivity ? 'Detailed financial analysis' : 'Budget summary'} presented',
-        'Cost savings of 15% identified through process optimization',
-        'Resource utilization at 85% - optimal level achieved',
-      ];
-      actionItems = [
-        ActionItem(
-          id: 'action_budget_1',
-          description: 'Prepare detailed budget breakdown for stakeholders',
-          assignee: 'Finance Manager',
-          dueDate: now.add(const Duration(days: 2)),
-          priority: Priority.high,
-        ),
-        ActionItem(
-          id: 'action_budget_2',
-          description: 'Negotiate additional contractor resources',
-          assignee: 'HR Manager',
-          dueDate: now.add(const Duration(days: 7)),
-          priority: Priority.medium,
-        ),
-      ];
-      speakers = [
-        Speaker(id: 'finance', name: 'Finance Manager'),
-        Speaker(id: 'hr', name: 'HR Manager'),
-        if (isMediumActivity) Speaker(id: 'director', name: 'Project Director'),
-      ];
-    } else {
-      // Wrap-up and next steps
-      topic = 'Action Items Review & Next Steps';
-      keyPoints = [
-        'All major agenda items successfully addressed',
-        'Action items assigned with clear deadlines and ownership',
-        '${isHighActivity ? 'Collaborative discussion' : 'Systematic review'} of deliverables',
-        'Next meeting scheduled with updated priorities',
-        'Team alignment achieved on key strategic decisions',
-      ];
-      actionItems = [
-        ActionItem(
-          id: 'action_final_1',
-          description: 'Distribute meeting minutes to all attendees',
-          assignee: 'Meeting Secretary',
-          dueDate: now.add(const Duration(hours: 4)),
-          priority: Priority.high,
-        ),
-        ActionItem(
-          id: 'action_final_2',
-          description: 'Schedule follow-up meetings for critical items',
-          assignee: 'Project Coordinator',
-          dueDate: now.add(const Duration(days: 1)),
-          priority: Priority.medium,
-        ),
-        ActionItem(
-          id: 'action_final_3',
-          description: 'Update project timeline with new commitments',
-          assignee: 'Project Manager',
-          dueDate: now.add(const Duration(days: 2)),
-          priority: Priority.low,
-        ),
-      ];
-      speakers = [
-        Speaker(id: 'coordinator', name: 'Project Coordinator'),
-        Speaker(id: 'secretary', name: 'Meeting Secretary'),
-        if (isHighActivity) Speaker(id: 'stakeholder', name: 'Key Stakeholder'),
-      ];
-    }
-
-    // Add audio context information
-    if (isHighActivity) {
-      keyPoints.add(
-          'High engagement level detected - active discussion in progress');
-    } else if (isMediumActivity) {
-      keyPoints.add('Moderate discussion level - structured conversation flow');
-    } else {
-      keyPoints.add('Presentation mode - single speaker addressing the group');
-    }
-
-    final segment = SummarySegment(
-      id: 'demo_${DateTime.now().millisecondsSinceEpoch}',
-      startTime: segmentStart.difference(sessionStart),
-      endTime: now.difference(sessionStart),
-      keyPoints: keyPoints,
-      actionItems: actionItems,
-      speakers: speakers,
-      topic: topic,
-    );
-
-    _liveSegments.add(segment);
-
-    // Keep only last 5 segments for better demo performance
-    if (_liveSegments.length > 5) {
-      _liveSegments.removeAt(0);
-    }
-
-    if (kDebugMode) {
-      print(
-          'Added demo segment: ${segment.topic} with ${segment.keyPoints.length} key points');
-    }
-
-    notifyListeners();
+    // Fallback: create a generic speaker
+    return [
+      Speaker(id: 'speaker_1', name: 'Speaker'),
+    ];
   }
 
   /// Set up audio processing stream
@@ -830,7 +727,7 @@ class MeetingService extends ChangeNotifier {
   Future<void> _ensureRequiredModelsAvailable() async {
     try {
       final modelManager = _aiService.modelManager;
-      
+
       // Load Whisper model from bundled assets
       if (!modelManager.availableModels.containsKey('whisper-tiny') ||
           !modelManager.availableModels['whisper-tiny']!.isDownloaded) {
@@ -855,11 +752,26 @@ class MeetingService extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) {
         print('Error loading models from assets: $e');
-        print('Continuing with mock implementations for demo');
+        print('AI service initialization failed, using fallback');
       }
       // Don't fail initialization, just log the error
-      // The AI services will fall back to mock implementations if models aren't available
+      // The AI services will use real implementations with proper model loading
     }
+  }
+
+  /// Convert AI ActionItems to Meeting ActionItems
+  List<ActionItem> _convertActionItems(
+      List<ai_summary.ActionItem> aiActionItems) {
+    return aiActionItems.asMap().entries.map((entry) {
+      final aiItem = entry.value;
+      return ActionItem(
+        id: 'ai_action_${entry.key}_${DateTime.now().millisecondsSinceEpoch}',
+        description: aiItem.description,
+        assignee: aiItem.assignee,
+        dueDate: aiItem.dueDate,
+        priority: _convertPriority(aiItem.priority),
+      );
+    }).toList();
   }
 
   @override

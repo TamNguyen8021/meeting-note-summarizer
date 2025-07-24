@@ -7,8 +7,6 @@ import '../core/ai/summarization_interface.dart';
 import '../core/ai/enhanced_model_manager.dart';
 import '../core/ai/whisper_speech_recognition.dart';
 import '../core/ai/llama_summarization.dart';
-import 'mock_speech_recognition.dart';
-import 'mock_summarization.dart';
 
 /// Main AI service that coordinates speech recognition and summarization
 /// Processes audio chunks and generates meeting summaries
@@ -35,20 +33,14 @@ class AiService extends ChangeNotifier {
     SpeechRecognitionInterface? speechRecognition,
     SummarizationInterface? summarization,
     ModelManager? modelManager,
-    bool useMockImplementations = true, // Default to mocks for development
   }) {
     _modelManager = modelManager ?? ModelManager();
 
-    // Use real implementations when explicitly requested, regardless of debug mode
-    if (useMockImplementations) {
-      _speechRecognition = speechRecognition ?? MockSpeechRecognition();
-      _summarization = summarization ?? MockSummarization();
-    } else {
-      _speechRecognition = speechRecognition ??
-          WhisperSpeechRecognition(modelManager: _modelManager);
-      _summarization =
-          summarization ?? LlamaSummarization(modelManager: _modelManager);
-    }
+    // Always use real implementations for production
+    _speechRecognition = speechRecognition ??
+        WhisperSpeechRecognition(modelManager: _modelManager);
+    _summarization =
+        summarization ?? LlamaSummarization(modelManager: _modelManager);
 
     // Initialize model manager in background (non-blocking)
     _initializeModelManager();
@@ -62,7 +54,7 @@ class AiService extends ChangeNotifier {
         debugPrint('Model manager initialized successfully');
       } catch (e) {
         debugPrint('Failed to initialize model manager: $e');
-        // Continue with mock implementations
+        // Continue with initialization even if model manager has issues
       }
 
       // Mark as initialized regardless of model manager status

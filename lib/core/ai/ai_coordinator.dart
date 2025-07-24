@@ -7,8 +7,6 @@ import 'enhanced_model_manager.dart';
 import 'device_capability_detector.dart';
 import 'whisper_speech_recognition.dart';
 import 'llama_summarization.dart';
-import '../../services/mock_speech_recognition.dart';
-import '../../services/mock_summarization.dart';
 
 /// Advanced AI coordinator that manages real model loading and switching
 /// Provides intelligent model selection based on device capabilities and user preferences
@@ -32,7 +30,6 @@ class AiCoordinator extends ChangeNotifier {
   // Current configuration
   String _currentSpeechModel = 'whisper-tiny';
   String _currentSummaryModel = 'tinyllama-q4';
-  bool _useMockImplementations = true;
 
   // Performance monitoring
   final List<ModelPerformanceMetric> _performanceHistory = [];
@@ -40,9 +37,7 @@ class AiCoordinator extends ChangeNotifier {
 
   AiCoordinator({
     ModelManager? modelManager,
-    bool initialMockMode = true,
-  })  : _modelManager = modelManager ?? ModelManager(),
-        _useMockImplementations = initialMockMode;
+  }) : _modelManager = modelManager ?? ModelManager();
 
   // Getters
   bool get isInitialized => _isInitialized;
@@ -50,7 +45,6 @@ class AiCoordinator extends ChangeNotifier {
   String? get lastError => _lastError;
   String get currentSpeechModel => _currentSpeechModel;
   String get currentSummaryModel => _currentSummaryModel;
-  bool get useMockImplementations => _useMockImplementations;
 
   SpeechRecognitionInterface? get speechRecognition => _activeSpeechRecognition;
   SummarizationInterface? get summarization => _activeSummarization;
@@ -68,8 +62,9 @@ class AiCoordinator extends ChangeNotifier {
       // Initialize model manager first
       final modelSuccess = await _modelManager.initialize();
       if (!modelSuccess) {
-        debugPrint('ModelManager initialization failed, continuing with mocks');
-        _useMockImplementations = true;
+        _lastError = 'ModelManager initialization failed';
+        notifyListeners();
+        return false;
       }
 
       // Initialize implementations
@@ -91,12 +86,8 @@ class AiCoordinator extends ChangeNotifier {
 
   /// Initialize all available AI implementations
   Future<void> _initializeImplementations() async {
-    // Mock implementations (always available)
-    _speechRecognitionImpls['mock'] = MockSpeechRecognition();
-    _summarizationImpls['mock'] = MockSummarization();
-
-    // Real implementations (when models are available)
-    if (!_useMockImplementations && _modelManager.isInitialized) {
+    // Initialize real implementations only
+    if (_modelManager.isInitialized) {
       try {
         // Whisper speech recognition
         for (final modelId in [
@@ -127,103 +118,31 @@ class AiCoordinator extends ChangeNotifier {
           }
         }
       } catch (e) {
-        debugPrint('Error initializing real implementations: $e');
-        _useMockImplementations = true;
+        debugPrint('Error initializing AI implementations: $e');
+        throw Exception('Failed to initialize AI implementations: $e');
       }
     }
   }
 
   /// Setup active implementations based on current configuration
   Future<void> _setupActiveImplementations() async {
-    if (_useMockImplementations) {
-      _activeSpeechRecognition = _speechRecognitionImpls['mock'];
-      _activeSummarization = _summarizationImpls['mock'];
-    } else {
-      // Use configured models if available, fallback to mocks
-      _activeSpeechRecognition = _speechRecognitionImpls[_currentSpeechModel] ??
-          _speechRecognitionImpls['mock'];
-      _activeSummarization = _summarizationImpls[_currentSummaryModel] ??
-          _summarizationImpls['mock'];
+    // Use configured models if available
+    _activeSpeechRecognition = _speechRecognitionImpls[_currentSpeechModel];
+    _activeSummarization = _summarizationImpls[_currentSummaryModel];
+
+    if (_activeSpeechRecognition == null) {
+      throw Exception(
+          'Speech recognition model not available: $_currentSpeechModel');
+    }
+
+    if (_activeSummarization == null) {
+      throw Exception(
+          'Summarization model not available: $_currentSummaryModel');
     }
 
     // Initialize active implementations
-    if (_activeSpeechRecognition != null) {
-      await _activeSpeechRecognition!.initialize();
-    }
-    if (_activeSummarization != null) {
-      await _activeSummarization!.initialize();
-    }
-  }
-
-  /// Switch to real AI implementations (download models if needed)
-  Future<bool> switchToRealImplementations() async {
-    if (!_modelManager.isInitialized) {
-      _lastError = 'Model manager not initialized';
-      return false;
-    }
-
-    _isModelSwitching = true;
-    notifyListeners();
-
-    try {
-      // Ensure required models are downloaded
-      final requiredModels = [_currentSpeechModel, _currentSummaryModel];
-
-      for (final modelId in requiredModels) {
-        if (!_modelManager.loadedModels.containsKey(modelId)) {
-          debugPrint('Downloading required model: $modelId');
-          final downloadSuccess = await _modelManager.downloadModel(modelId);
-          if (!downloadSuccess) {
-            _lastError = 'Failed to download model: $modelId';
-            _isModelSwitching = false;
-            notifyListeners();
-            return false;
-          }
-        }
-      }
-
-      // Re-initialize implementations with real models
-      _useMockImplementations = false;
-      await _initializeImplementations();
-      await _setupActiveImplementations();
-
-      _lastModelSwitch = DateTime.now();
-      _isModelSwitching = false;
-      notifyListeners();
-
-      debugPrint('Successfully switched to real AI implementations');
-      return true;
-    } catch (e) {
-      _lastError = 'Error switching to real implementations: $e';
-      _isModelSwitching = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  /// Switch to mock AI implementations (for testing/demo)
-  Future<bool> switchToMockImplementations() async {
-    _isModelSwitching = true;
-    notifyListeners();
-
-    try {
-      // Switch to mock mode
-      _useMockImplementations = true;
-      await _initializeImplementations();
-      await _setupActiveImplementations();
-
-      _lastModelSwitch = DateTime.now();
-      _isModelSwitching = false;
-      notifyListeners();
-
-      debugPrint('Successfully switched to mock AI implementations');
-      return true;
-    } catch (e) {
-      _lastError = 'Error switching to mock implementations: $e';
-      _isModelSwitching = false;
-      notifyListeners();
-      return false;
-    }
+    await _activeSpeechRecognition!.initialize();
+    await _activeSummarization!.initialize();
   }
 
   /// Switch speech recognition model
@@ -390,7 +309,6 @@ class AiCoordinator extends ChangeNotifier {
     return {
       'currentSpeechModel': _currentSpeechModel,
       'currentSummaryModel': _currentSummaryModel,
-      'useMockImplementations': _useMockImplementations,
       'availableImplementations': {
         'speech': _speechRecognitionImpls.keys.toList(),
         'summarization': _summarizationImpls.keys.toList(),
@@ -567,7 +485,6 @@ class AiCoordinator extends ChangeNotifier {
       },
       'performance_metrics': _performanceHistory.length,
       'last_adaptation': _lastModelSwitch?.toIso8601String(),
-      'using_mocks': _useMockImplementations,
     };
   }
 

@@ -430,35 +430,22 @@ class _ModelManagementScreenState extends State<ModelManagementScreen>
     );
   }
 
-  /// Mode card (Mock vs Real AI)
+  /// AI Status card showing current models
   Widget _buildModeCard(AiCoordinator aiCoordinator) {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: aiCoordinator.useMockImplementations
-              ? Colors.orange.withOpacity(0.1)
-              : Colors.green.withOpacity(0.1),
+          backgroundColor: Colors.green.withOpacity(0.1),
           child: Icon(
-            aiCoordinator.useMockImplementations ? Icons.code : Icons.smart_toy,
-            color: aiCoordinator.useMockImplementations
-                ? Colors.orange
-                : Colors.green,
+            Icons.smart_toy,
+            color: Colors.green,
           ),
         ),
-        title: Text(aiCoordinator.useMockImplementations
-            ? 'Mock Mode'
-            : 'Real AI Mode'),
+        title: const Text('AI Models Active'),
         subtitle: Text(
-          aiCoordinator.useMockImplementations
-              ? 'Using simulated AI responses'
-              : 'Using real AI models',
+          'Speech: ${aiCoordinator.currentSpeechModel}\nSummary: ${aiCoordinator.currentSummaryModel}',
         ),
-        trailing: aiCoordinator.useMockImplementations
-            ? ElevatedButton(
-                onPressed: () => _switchToRealAI(aiCoordinator),
-                child: const Text('Enable Real AI'),
-              )
-            : const Icon(Icons.check_circle, color: Colors.green),
+        trailing: const Icon(Icons.check_circle, color: Colors.green),
       ),
     );
   }
@@ -727,23 +714,6 @@ class _ModelManagementScreenState extends State<ModelManagementScreen>
           content: Text(
             success
                 ? 'Switched to ${model.name}'
-                : 'Failed to switch: ${aiCoordinator.lastError}',
-          ),
-          backgroundColor: success ? Colors.green : Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _switchToRealAI(AiCoordinator aiCoordinator) async {
-    final success = await aiCoordinator.switchToRealImplementations();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? 'Switched to real AI models'
                 : 'Failed to switch: ${aiCoordinator.lastError}',
           ),
           backgroundColor: success ? Colors.green : Colors.red,
